@@ -13,6 +13,8 @@ class Regression(object):
         p = polynomial degree
         n = number of datapoints
         f = function for testing
+        l = lambda variable
+        method = Type of regression method. Inputs: "OLS", "RIDGE" or "LASSO"
         """
 
         self.p, self.n, self.l = p, n, l
@@ -26,7 +28,7 @@ class Regression(object):
             self.method = self.OLS
         elif method == "RIDGE":
             self.method = self.RIDGE
-        elif self.method == "LASSO":
+        elif method == "LASSO":
             self.method = self.LASSO
         else:
             print("Regression method not specified")
@@ -71,23 +73,32 @@ class Regression(object):
     def OLS(self):
         U, s, VT = np.linalg.svd(self.X)
         D = np.diag(s**2)
-        Xinv = np.linalg.inv(VT.T.dot(D).dot(VT))
-        self.beta = Xinv.dot(self.X.T).dot(self.z)
+        Xinv = np.linalg.inv(VT.T @ D @ VT)
+        self.beta = Xinv @ self.X.T @ self.z
         self.z_tilde = self.X @ self.beta
+
+        #lin = skl.LinearRegression().fit(self.X, self.z)
+        #beta = lin.coef_
 
     def RIDGE(self):
         U, s, VT = np.linalg.svd(self.X)
         D = np.diag(s**2)
-        Xinv = np.linalg.inv(VT.T.dot(D).dot(VT))
-        self.beta = Xinv.dot(self.X.T).dot(self.z)/(1 + self.l)
+        Xinv = np.linalg.inv(VT.T @ D @ VT)
+        self.beta = Xinv @ self.X.T @ self.z/(1 + self.l)
         self.z_tilde = self.X @ self.beta
 
+        #l = int((self.p + 1)*(self.p + 2)/2)
+        #clf_r = skl.Ridge(alpha = self.l).fit(self.X, self.z)
+
     def LASSO(self):
-        clf_lasso = skl.Lasso(alpha=self.l).fit(self.X, self.z)
+        l = int((self.p + 1)*(self.p + 2)/2)
+        clf_lasso = skl.Lasso(alpha = self.l).fit(self.X, self.z)
+        self.beta = clf_lasso.coef_
+        self.z_tilde = self.X @ self.beta
 
     def confIntBeta(self):
         self.method()
-        varbeta = np.sqrt(np.linalg.inv(self.X.T.dot(self.X)).diagonal())
+        varbeta = np.sqrt(np.linalg.inv(self.X.T @ self.X)).diagonal()
         percentiles = [99, 98, 95, 90]
         z = [2.576, 2.326, 1.96, 1.645]
         sigmaSQ = np.sum((self.z - self.z_tilde)**2)/(len(self.z) - len(self.beta) - 1)
@@ -141,9 +152,21 @@ if __name__ == "__main__":
         return term1 + term2 + term3 + term4
 
     p = 5
-    n = 10
-    l = 0.5
+    n = 100
+    l = 0.01
     f = FrankeFunction
-    method = "OLS"
+    method = "LASSO"
     a = Regression(p, n, f, l, method)
-    #a.plotCompare()
+    a.LASSO()
+    print("R2 score from LASSO: %3.6f" % a.R2())
+    print("MSE score from LASSO: %3.6f" % a.MSE())
+    print("")
+
+    a.OLS()
+    print("R2 score from OLS: %3.6f" % a.R2())
+    print("MSE score from OLS: %3.6f" % a.MSE())
+    print("")
+
+    a.RIDGE()
+    print("R2 score from RIDGE: %3.6f" % a.R2())
+    print("MSE score from RIDGE: %3.6f" % a.MSE())
