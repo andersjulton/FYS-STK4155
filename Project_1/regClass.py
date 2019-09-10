@@ -7,33 +7,45 @@ from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 
 class Regression(object):
-    def __init__(self, p, n, f, l = 0, method = ''):
+    def __init__(self, p, l=0, filename=None, f=None, n=None):
         """
         Class for OLS, Ridge and LASSO regression.
+        -----------------------
         p = polynomial degree
-        n = number of datapoints
-        f = function for testing
         l = lambda variable
-        method = Type of regression method. Inputs: "OLS", "RIDGE" or "LASSO"
+        -----------------------
+        filename = file containing data points
+                OR
+        f = function for testing
+        n = number of datapoints
         """
+        self.p, self.l = p, l
+        if filename == None:
+            self.set_data_func(f, n)
+        else:
+            self.set_data(filename)
 
-        self.p, self.n, self.l = p, n, l
+        self.CreateDesignMatrix_X()
+        self.method = None
+
+
+    def set_data_file(self, filename):
+        # TODO
+        pass
+
+
+    def set_data_func(self, f, n):
+        if n == None:
+            raise ValueError("number of datapoints (n) must be provided")
+        self.n = n
         x, y = np.sort(np.random.uniform(0, 1, n)), np.sort(np.random.uniform(0, 1, n))
         self.xm, self.ym = np.meshgrid(x, y)
         self.x, self.y = np.ravel(self.xm), np.ravel(self.ym)
         self.zm = f(self.xm, self.ym)
         self.z = np.ravel(self.zm)
-        self.CreateDesignMatrix_X()
-        if method == "OLS":
-            self.method = self.OLS
-        elif method == "RIDGE":
-            self.method = self.RIDGE
-        elif method == "LASSO":
-            self.method = self.LASSO
-        else:
-            print("Regression method not specified")
-            sys.exit()
+        
 
+    
     def plotCompare(self):
         fig = plt.figure()
         ax = fig.gca(projection='3d')
@@ -51,6 +63,7 @@ class Regression(object):
 
         plt.show()
 
+    
     def CreateDesignMatrix_X(self):
         N = len(self.x)
         l = int((self.p + 1)*(self.p + 2)/2)
@@ -61,6 +74,7 @@ class Regression(object):
             for k in range(i + 1):
                 self.X[:, q + k] = self.x**(i - k)*self.y**k
 
+    
     def TTsplit(self, test_size):
         interval = np.sort(np.random.choice(len(self.z), replace = False, size = int(len(self.z)*test_size)))
         X_test, z_test = self.X[interval,:], self.z[interval]
@@ -70,7 +84,9 @@ class Regression(object):
         self.X = np.ma.compress_rows(X_train)
         self.z = z_train.compressed()
 
+    
     def OLS(self):
+        self.method = self.OLS
         U, s, VT = np.linalg.svd(self.X)
         D = np.diag(s**2)
         Xinv = np.linalg.inv(VT.T @ D @ VT)
@@ -80,7 +96,9 @@ class Regression(object):
         #lin = skl.LinearRegression().fit(self.X, self.z)
         #beta = lin.coef_
 
+    
     def RIDGE(self):
+        self.method = self.RIDGE
         U, s, VT = np.linalg.svd(self.X)
         D = np.diag(s**2)
         Xinv = np.linalg.inv(VT.T @ D @ VT)
@@ -91,11 +109,13 @@ class Regression(object):
         #clf_r = skl.Ridge(alpha = self.l).fit(self.X, self.z)
 
     def LASSO(self):
+        self.method = self.LASSO
         l = int((self.p + 1)*(self.p + 2)/2)
         clf_lasso = skl.Lasso(alpha = self.l).fit(self.X, self.z)
         self.beta = clf_lasso.coef_
         self.z_tilde = self.X @ self.beta
 
+    
     def confIntBeta(self):
         self.method()
         varbeta = np.sqrt(np.linalg.inv(self.X.T @ self.X)).diagonal()
@@ -107,8 +127,9 @@ class Regression(object):
             for i, n in enumerate(percentiles):
                 print("%2i%%: %3.2f +- %3.2f" % (percentiles[i], self.beta[k], z[i]*np.sqrt(sigmaSQ)/varbeta[k]))
 
-    def kFoldCV(self, k = 10, shuffle = False):
-        if shuffle == True:
+    
+    def kFoldCV(self, k=10, shuffle=False):
+        if shuffle:
             interval = np.random.choice(len(self.z), replace = False, size = int(len(self.z)))
             isplit = np.sort(np.array_split(interval, k))
         else:
@@ -132,41 +153,18 @@ class Regression(object):
 
         return kR2/k, kMSE/k
 
+    
     def R2(self):
         return 1 - np.sum((self.z - self.z_tilde)**2)/np.sum((self.z - np.mean(self.z))**2)
 
+    
+    # mean squared error
     def MSE(self):
         return np.mean((self.z - self.z_tilde)**2)
 
+
+    # relative error
     def relError(self, x, x_tilde):
         return abs((x - x_tilde)/x)
 
 
-if __name__ == "__main__":
-
-    def FrankeFunction(x, y):
-        term1 = 0.75*np.exp(-(0.25*(9*x - 2)**2) - 0.25*((9*y - 2)**2))
-        term2 = 0.75*np.exp(-((9*x + 1)**2)/49.0 - 0.1*(9*y + 1))
-        term3 = 0.5*np.exp(-(9*x - 7)**2/4.0 - 0.25*((9*y - 3)**2))
-        term4 = -0.2*np.exp(-(9*x - 4)**2 - (9*y - 7)**2)
-        return term1 + term2 + term3 + term4
-
-    p = 5
-    n = 100
-    l = 0.01
-    f = FrankeFunction
-    method = "LASSO"
-    a = Regression(p, n, f, l, method)
-    a.LASSO()
-    print("R2 score from LASSO: %3.6f" % a.R2())
-    print("MSE score from LASSO: %3.6f" % a.MSE())
-    print("")
-
-    a.OLS()
-    print("R2 score from OLS: %3.6f" % a.R2())
-    print("MSE score from OLS: %3.6f" % a.MSE())
-    print("")
-
-    a.RIDGE()
-    print("R2 score from RIDGE: %3.6f" % a.R2())
-    print("MSE score from RIDGE: %3.6f" % a.MSE())
