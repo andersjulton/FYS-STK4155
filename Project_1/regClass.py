@@ -43,9 +43,9 @@ class Regression(object):
         self.x, self.y = np.ravel(self.xm), np.ravel(self.ym)
         self.zm = f(self.xm, self.ym)
         self.z = np.ravel(self.zm)
-        
 
-    
+
+
     def plotCompare(self):
         fig = plt.figure()
         ax = fig.gca(projection='3d')
@@ -63,7 +63,7 @@ class Regression(object):
 
         plt.show()
 
-    
+
     def CreateDesignMatrix_X(self):
         N = len(self.x)
         l = int((self.p + 1)*(self.p + 2)/2)
@@ -74,7 +74,7 @@ class Regression(object):
             for k in range(i + 1):
                 self.X[:, q + k] = self.x**(i - k)*self.y**k
 
-    
+
     def TTsplit(self, test_size):
         interval = np.sort(np.random.choice(len(self.z), replace = False, size = int(len(self.z)*test_size)))
         X_test, z_test = self.X[interval,:], self.z[interval]
@@ -84,7 +84,7 @@ class Regression(object):
         self.X = np.ma.compress_rows(X_train)
         self.z = z_train.compressed()
 
-    
+
     def OLS(self):
         self.method = self.OLS
         U, s, VT = np.linalg.svd(self.X)
@@ -96,15 +96,11 @@ class Regression(object):
         #lin = skl.LinearRegression().fit(self.X, self.z)
         #beta = lin.coef_
 
-    
+
     def RIDGE(self):
         self.method = self.RIDGE
-        U, s, VT = np.linalg.svd(self.X)
-        D = np.diag(s**2)
-        Xinv = np.linalg.inv(VT.T @ D @ VT)
-        self.beta = Xinv @ self.X.T @ self.z/(1 + self.l)
+        self.beta = np.linalg.inv(self.X.T @ (self.X) + self.l*np.identity(np.shape(self.X))) @ self.X.T @ self.z
         self.z_tilde = self.X @ self.beta
-
         #l = int((self.p + 1)*(self.p + 2)/2)
         #clf_r = skl.Ridge(alpha = self.l).fit(self.X, self.z)
 
@@ -115,7 +111,7 @@ class Regression(object):
         self.beta = clf_lasso.coef_
         self.z_tilde = self.X @ self.beta
 
-    
+
     def confIntBeta(self):
         self.method()
         varbeta = np.sqrt(np.linalg.inv(self.X.T @ self.X)).diagonal()
@@ -127,7 +123,7 @@ class Regression(object):
             for i, n in enumerate(percentiles):
                 print("%2i%%: %3.2f +- %3.2f" % (percentiles[i], self.beta[k], z[i]*np.sqrt(sigmaSQ)/varbeta[k]))
 
-    
+
     def kFoldCV(self, k=10, shuffle=False):
         if shuffle:
             interval = np.random.choice(len(self.z), replace = False, size = int(len(self.z)))
@@ -153,11 +149,11 @@ class Regression(object):
 
         return kR2/k, kMSE/k
 
-    
+
     def R2(self):
         return 1 - np.sum((self.z - self.z_tilde)**2)/np.sum((self.z - np.mean(self.z))**2)
 
-    
+
     # mean squared error
     def MSE(self):
         return np.mean((self.z - self.z_tilde)**2)
@@ -166,5 +162,3 @@ class Regression(object):
     # relative error
     def relError(self, x, x_tilde):
         return abs((x - x_tilde)/x)
-
-
