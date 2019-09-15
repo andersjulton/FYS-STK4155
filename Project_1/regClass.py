@@ -121,7 +121,7 @@ class Regression(object):
         for k in range(len(self.beta)):
             print("Confidence interval for beta %i" % (k + 1))
             for i, n in enumerate(percentiles):
-                print("%2i%%: %3.2f +- %3.2f" % (percentiles[i], self.beta[k], z[i]*np.sqrt(sigmaSQ)/varbeta[k]))
+                print("%2i%%: %3.2f +- %3.2f" % (percentiles[i], self.beta[k], z[i]*np.sqrt(sigmaSQ)*varbeta[k]))
 
 
     def kFoldCV(self, k=10, shuffle=False):

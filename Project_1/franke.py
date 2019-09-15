@@ -63,4 +63,3 @@ plt.legend(fontsize=font)
 plt.xlabel(r"$n$", fontsize=font)
 plt.ylabel(r"$R^2$", fontsize=font)
 plt.show()
-
