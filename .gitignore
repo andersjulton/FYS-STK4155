@@ -2,3 +2,4 @@ test.py
 hw1.py
 hw2.py
 **/.DS_Store
+**/__pycache__
