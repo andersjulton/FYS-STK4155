@@ -61,27 +61,27 @@ def plot_compare(method):
 
 
 
+if __name__ == "__main__":
+	p = 4
+	n = 100
+	x, y, z = get_train_data(n)
 
-p = 4
-n = 100
-x, y, z = get_train_data(n)
-
-franke_OLS = OLS(x, y, z, p)
-print("R2 score from OLS: %3.6f" % franke_OLS.RR())
-print("MSE score from OLS: %3.6f\n" % franke_OLS.MSE())
-#plot_compare(franke_OLS)
+	franke_OLS = OLS(x, y, z, p)
+	print("R2 score from OLS: %3.6f" % franke_OLS.RR())
+	print("MSE score from OLS: %3.6f\n" % franke_OLS.MSE())
+	#plot_compare(franke_OLS)
 
 
-l = 0.01
-franke_LASSO = LASSO(x, y, z, p, l)
-print("R2 score from LASSO: %3.6f" % franke_LASSO.RR())
-print("MSE score from LASSO: %3.6f\n" % franke_LASSO.MSE())
-#plot_compare(franke_LASSO)
+	l = 0.01
+	franke_LASSO = LASSO(x, y, z, p, l)
+	print("R2 score from LASSO: %3.6f" % franke_LASSO.RR())
+	print("MSE score from LASSO: %3.6f\n" % franke_LASSO.MSE())
+	#plot_compare(franke_LASSO)
 
-l = 0.01
-franke_RIDGE = RIDGE(x, y, z, p, l)
-print("R2 score from RIDGE: %3.6f" % franke_RIDGE.RR())
-print("MSE score from RIDGE: %3.6f\n" % franke_RIDGE.MSE())
-#plot_compare(franke_RIDGE)
+	l = 0.01
+	franke_RIDGE = RIDGE(x, y, z, p, l)
+	print("R2 score from RIDGE: %3.6f" % franke_RIDGE.RR())
+	print("MSE score from RIDGE: %3.6f\n" % franke_RIDGE.MSE())
+	#plot_compare(franke_RIDGE)
 
 
