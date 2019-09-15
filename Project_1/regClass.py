@@ -30,7 +30,7 @@ class Regression(object):
                 X[:, q + k] = x**(i - k)*y**k
         return X
 
-    
+
     def TTsplit(self, test_size):
         interval = np.sort(np.random.choice(len(self.z), replace=False, size=int(len(self.z)*test_size)))
         X_test, z_test = self.X[interval,:], self.z[interval]
@@ -40,7 +40,7 @@ class Regression(object):
         self.X = np.ma.compress_rows(X_train)
         self.z = z_train.compressed()
 
-    
+
     def confIntBeta(self):
         varbeta = np.sqrt(np.linalg.inv(self.X.T @ self.X)).diagonal()
         percentiles = [99, 98, 95, 90]
@@ -51,7 +51,7 @@ class Regression(object):
             for i, n in enumerate(percentiles):
                 print("%2i%%: %3.2f +- %3.2f" % (percentiles[i], self.beta[k], z[i]*np.sqrt(sigmaSQ)/varbeta[k]))
 
-    
+
     def kFoldCV(self, k=10, shuffle=False):
         if shuffle:
             interval = np.random.choice(len(self.z), replace=False, size=int(len(self.z)))
@@ -167,8 +167,4 @@ class LASSO(Regression):
         lasso = skl.Lasso(alpha=self.l).fit(self.X, self.z)
         score = lasso.score(self.X, self.z)
         assert abs(score - self.RR()) < 1e-12, "Assumtion of Beta in Lasso is wrong?"
-
-
-
-
 
