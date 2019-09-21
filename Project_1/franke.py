@@ -19,7 +19,7 @@ def frankeFunc(x, y):
 p = 5
 franke = Regression(p, l=0.01, f=frankeFunc, n=100)
 
-
+'''
 franke.LASSO()
 print("R2 score from LASSO: %3.6f" % franke.R2())
 print("MSE score from LASSO: %3.6f\n" % franke.MSE())
@@ -31,6 +31,7 @@ print("MSE score from OLS: %3.6f\n" % franke.MSE())
 franke.RIDGE()
 print("R2 score from RIDGE: %3.6f" % franke.R2())
 print("MSE score from RIDGE: %3.6f\n" % franke.MSE())
+'''
 
 n = [10, 50, 75, 100]
 if compute_RR:
