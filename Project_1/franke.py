@@ -32,16 +32,15 @@ franke.RIDGE()
 print("R2 score from RIDGE: %3.6f" % franke.R2())
 print("MSE score from RIDGE: %3.6f\n" % franke.MSE())
 
-N = 4
 n = [10, 50, 75, 100]
 if compute_RR:
-	LASSO = np.zeros(N)
-	OLS = np.zeros(N)
-	RIDGE = np.zeros(N)
+	LASSO = np.zeros(len(n))
+	OLS = np.zeros(len(n))
+	RIDGE = np.zeros(len(n))
 
-	for i in range(N):
-		print(f"computing for n = {n[i]}.")
-		franke = Regression(p, l=0.01, f=frankeFunc, n=n[i])
+	for i, j in enumerate(n):
+		print(f"computing for n = {j}.")
+		franke = Regression(p, l=0.01, f=frankeFunc, n=j)
 		franke.LASSO()
 		LASSO[i] = franke.R2()
 		franke.OLS()

@@ -18,7 +18,7 @@ class Regression(object):
 
     def learn(self):
         pass
-        
+
 
     def CreateDesignMatrix(self, x, y):
         N = len(x)
@@ -83,11 +83,11 @@ class Regression(object):
         RR_tot = np.sum((self.z - np.mean(self.z))**2)
         return 1 - RR_res/RR_tot
 
-    
-    # mean squared error 
+
+    # mean squared error
     def MSE(self, z=None, z_tilde=None):
         if z == None or z_tilde == None:
-            z = self.z 
+            z = self.z
             z_tilde = self.z_tilde
         return np.mean((z - z_tilde)**2)
 
@@ -109,7 +109,7 @@ class OLS(Regression):
 
     def learn(self):
         # eigh finds Ax = lx for symmetric/hermitian A
-        E, P = np.linalg.eigh( self.X.T@self.X )
+        E, P = np.linalg.eigh( self.X.T @ self.X )
         D_inv = np.diag(1/E)
         self.beta = P @ D_inv @ P.T @ self.X.T @ self.z
         self.z_tilde = self.X @ self.beta
@@ -160,11 +160,10 @@ class LASSO(Regression):
         lasso = skl.Lasso(alpha=self.l).fit(self.X, self.z)
         self.beta = lasso.coef_
         self.beta[0] = lasso.intercept_
-        self.z_tilde = self.X @ self.beta 
+        self.z_tilde = self.X @ self.beta
 
 
     def test(self):
         lasso = skl.Lasso(alpha=self.l).fit(self.X, self.z)
         score = lasso.score(self.X, self.z)
         assert abs(score - self.RR()) < 1e-12, "Assumtion of Beta in Lasso is wrong?"
-
