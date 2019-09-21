@@ -7,16 +7,16 @@ import warnings
 warnings.filterwarnings('ignore')
 
 compute = True
-p = 4
+p = 5
 show = False
 
 
-n_list = [i*2 for i in range(10, 101)]
+n_list = [i*2 for i in range(50, 1001, 50)]
 N = len(n_list)
 M = 100
 lambdas = np.linspace(1e-4, 0.1, M)
 
-path = "store_results/p%d_" %p
+path = "store_results/"
 
 if compute:
 	x_test, y_test, z_test = get_test_data(100)
@@ -73,7 +73,7 @@ else:
 	TEST = np.load(path+"MSE_TEST.npz")
 
 
-path = "figures/p%d_" %p
+path = "figures/"
 RR_min = 0.6; RR_max = 1
 MSE_min = 0; MSE_max = 0.1 
 # plot OLS, 2D
