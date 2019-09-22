@@ -49,7 +49,7 @@ def plot_ML(method, n, ax):
 	x, y = np.meshgrid(np.linspace(0, 1, n), np.linspace(0, 1, n))
 	x, y = np.ravel(x), np.ravel(y)
 	z = method(x, y)
-	ax.scatter(x, y, z, c=z, cmap=cm.coolwarm)
+	ax.scatter(x, y, z, c=z, cmap="coolwarm")
 
 
 
@@ -59,25 +59,25 @@ def plot_compare(method):
 	plt.show()
 
 
+
+
+
 if __name__ == "__main__":
 	p = 5
 	n = 100
 	x, y, z = get_train_data(n)
 
-	franke_OLS = OLS(x, y, z, p)
-	print("R2 score from OLS: %3.6f" % franke_OLS.RR())
-	print("MSE score from OLS: %3.6f\n" % franke_OLS.MSE())
-	#plot_compare(franke_OLS)
+	franke_OLS = OLS(p)
+	franke_OLS.learn(z, x, y)
+	plot_compare(franke_OLS)
 
 
 	l = 0.01
-	franke_LASSO = LASSO(x, y, z, p, l)
-	print("R2 score from LASSO: %3.6f" % franke_LASSO.RR())
-	print("MSE score from LASSO: %3.6f\n" % franke_LASSO.MSE())
-	#plot_compare(franke_LASSO)
+	franke_LASSO = LASSO(p, l)
+	franke_LASSO.learn(z, x, y)
+	plot_compare(franke_LASSO)
 
 	l = 0.01
-	franke_RIDGE = RIDGE(x, y, z, p, l)
-	print("R2 score from RIDGE: %3.6f" % franke_RIDGE.RR())
-	print("MSE score from RIDGE: %3.6f\n" % franke_RIDGE.MSE())
-	#plot_compare(franke_RIDGE)
+	franke_RIDGE = RIDGE(p, l)
+	franke_RIDGE.learn(z, x, y)
+	plot_compare(franke_RIDGE)
