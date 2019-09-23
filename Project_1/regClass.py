@@ -1,23 +1,28 @@
 import numpy as np
 import sklearn.linear_model as skl
-from time import time
 
 
 class Regression(object):
-    def __init__(self, input_data_x, input_data_y, output_data, poly_degree):
+    def __init__(self, poly_degree):
         self.p = poly_degree
-        self.X = self.CreateDesignMatrix(input_data_x, input_data_y)
-        self.z = output_data
-        self.learn()
 
 
-    def __call__(self, x, y):
-        X = self.CreateDesignMatrix(x, y)
+    def __call__(self, x, y=None):
+        if y == None:
+            X = x
+        else:
+            X = self.CreateDesignMatrix(x, y)
         return X @ self.beta
 
 
-    def learn(self):
+    # abstract method for regression
+    def fit(self, X, z):
         pass
+
+
+    def train(self, x, y, z):
+        X = self.CreateDesignMatrix(x, y)
+        self.fit(X, z)
 
 
     def CreateDesignMatrix(self, x, y):
@@ -31,17 +36,22 @@ class Regression(object):
         return X
 
 
-    def TTsplit(self, test_size):
-        interval = np.sort(np.random.choice(len(self.z), replace=False, size=int(len(self.z)*test_size)))
-        X_test, z_test = self.X[interval,:], self.z[interval]
-        X_train, z_train = np.ma.array(self.X, mask = False), np.ma.array(self.z, mask = False)
+    def TTsplit(self, x, y, z, test_size):
+        X = self.CreateDesignMatrix(x, y)
+        interval = np.sort(np.random.choice(len(z), replace=False, size=int(len(z)*test_size)))
+        X_test, z_test = X[interval,:], z[interval]
+        X_train, z_train = np.ma.array(X, mask=False), np.ma.array(z, mask=False)
         z_train.mask[interval] = True
         X_train.mask[interval,:] = True
-        self.X = np.ma.compress_rows(X_train)
-        self.z = z_train.compressed()
+        X = np.ma.compress_rows(X_train)
+        z = z_train.compressed()
+        self.fit(X, z)
+        return X_test, z_test
 
 
-    def confIntBeta(self):
+
+    def confIntBeta(self, x, y, z):
+        X = self.CreateDesignMatrix(x, y)
         varbeta = np.sqrt(np.linalg.inv(self.X.T @ self.X)).diagonal()
         percentiles = [99, 98, 95, 90]
         z = [2.576, 2.326, 1.96, 1.645]
@@ -52,55 +62,52 @@ class Regression(object):
                 print("%2i%%: %3.2f +- %3.2f" % (percentiles[i], self.beta[k], z[i]*np.sqrt(sigmaSQ)*varbeta[k]))
 
 
-    def kFoldCV(self, k=10, shuffle=False):
-        if shuffle:
-            interval = np.random.choice(len(self.z), replace=False, size=int(len(self.z)))
-            isplit = np.sort(np.array_split(interval, k))
-        else:
-            interval = np.arange(len(self.z))
-            isplit = np.array_split(interval, k)
-        kR2 = 0
-        kMSE = 0
-        X_train, z_train = np.ma.array(self.X, mask=False), np.ma.array(self.z, mask=False)
+    # k-fold cross validation
+    def kFoldCV(self, x, y, z, k):
+        R2 = 0;    MSE = 0
+        # shuffled array of indices
+        indices = np.linspace(0, N-1, N)
+        np.random.shuffle(indices)
+        X = self.CreateDesignMatrix(x, y)
 
+        size = N//k         # size of each interval
+        mod = N % k         # in case k is not a factor in N
+        end = 0
         for i in range(k):
-            z_train.mask[isplit[i]] = True
-            X_train.mask[isplit[i],:] = True
-            self.X = np.ma.compress_rows(X_train)
-            self.z = z_train.compressed()
-            self.learn()
-            z_train.mask[isplit[i]] = False
-            X_train.mask[isplit[i],:] = False
-            self.z_tilde = X_train[isplit[i],:] @ self.beta
-            self.z = z_train[isplit[i]]
-            kR2 += self.R2()
-            kMSE += self.MSE()
+            start = end
+            end += size + (1 if i < mod else 0)
+            test = np.logical_and(indices >= start, indices < end)  # small part is test
+            train = test == False                                   # rest is train
 
-        return kR2/k, kMSE/k
+            self.fit(X[train], z[train])
+            z_tilde = self(X[train])
 
-    # the R2 coefficient of determination.
-    def R2(self):
-        R2_res = np.sum((self.z - self.z_tilde)**2)
-        R2_tot = np.sum((self.z - np.mean(self.z))**2)
-        return 1 - R2_res/R2_tot
+            R2 += self.R2(z[test], z_tilde)
+            MSE += self.MSE(z[test], z_tilde)
 
+        return R2/k, MSE/k
+
+
+    # the RR coefficient of determination.
+    def R2(self, z, z_tilde):
+        RR_res = np.sum((z - z_tilde)**2)
+        RR_tot = np.sum((z - np.mean(z))**2)
+        return 1 - RR_res/RR_tot
 
     # mean squared error
-    def MSE(self, z=None, z_tilde=None):
-        if z == None or z_tilde == None:
-            z = self.z
-            z_tilde = self.z_tilde
+    def MSE(self, z, z_tilde):
         return np.mean((z - z_tilde)**2)
 
 
     # residual sum of squares
-    def R2S(self):
-        return sum((self.z - self.z_tilde)**2)
+    def RRS(self, z, z_tilde):
+        return sum((z - z_tilde)**2)
 
 
     # relative error
-    def relError(self):
-        return abs((self.z - self.z_tilde)/self.z)
+    def relError(self, z, z_tilde):
+        return abs((z - z_tilde)/z)
+
 
 
 
@@ -108,63 +115,33 @@ class Regression(object):
 
 class OLS(Regression):
 
-    def learn(self):
+    def fit(self, X, z):
         # eigh finds Ax = lx for symmetric/hermitian A
-        E, P = np.linalg.eigh( self.X.T @ self.X )
+        E, P = np.linalg.eigh(X.T @ X)
         D_inv = np.diag(1/E)
-        self.beta = P @ D_inv @ P.T @ self.X.T @ self.z
-        self.z_tilde = self.X @ self.beta
-
-
-    def test(self):
-        # time old version
-        start = time()
-        U, sigma, VT = np.linalg.svd(self.X)
-        D = np.diag(sigma**2)
-        XTXinv = np.linalg.inv(VT.T @ D @ VT)
-        self.beta = XTXinv @ self.X.T @ self.z
-        self.z_tilde = self.X @ self.beta
-        end = time()
-        print("Old: %.3e" %float(end - start))
-        score = self.R2()
-        # time new version
-        start = time()
-        self.learn()
-        end = time()
-        print("New: %.3e" %float(end - start))
-        # compare R2
-        assert abs(score - self.R2()) < 1e-12, "Assumtion of Beta in OLS is wrong?"
+        self.beta = P @ D_inv @ P.T @ X.T @ z
 
 
 
 class RIDGE(Regression):
-    def __init__(self, input_data_x, input_data_y, output_data, poly_degree, l):
+    def __init__(self, poly_degree, l):
         self.l = l
-        super().__init__(input_data_x, input_data_y, output_data, poly_degree)
+        super().__init__(poly_degree)
 
 
-    def learn(self):
-        I = np.identity(len(self.X[0]))
-        self.beta = np.linalg.inv(self.X.T @ self.X + self.l*I) @ self.X.T @ self.z
-        self.z_tilde = self.X @ self.beta
-
+    def fit(self, X, z):
+        I = np.identity(len(X[0]))
+        self.beta = np.linalg.inv(X.T @ X + self.l*I) @ X.T @ z
 
 
 
 class LASSO(Regression):
-    def __init__(self, input_data_x, input_data_y, output_data, poly_degree, l):
+    def __init__(self, poly_degree, l):
         self.l = l
-        super().__init__(input_data_x, input_data_y, output_data, poly_degree)
+        super().__init__(poly_degree)
 
 
-    def learn(self):
-        lasso = skl.Lasso(alpha=self.l).fit(self.X, self.z)
+    def fit(self, X, z):
+        lasso = skl.Lasso(alpha=self.l).fit(X, z)
         self.beta = lasso.coef_
         self.beta[0] = lasso.intercept_
-        self.z_tilde = self.X @ self.beta
-
-
-    def test(self):
-        lasso = skl.Lasso(alpha=self.l).fit(self.X, self.z)
-        score = lasso.score(self.X, self.z)
-        assert abs(score - self.R2()) < 1e-12, "Assumtion of Beta in Lasso is wrong?"
