@@ -7,17 +7,20 @@ import warnings
 warnings.filterwarnings('ignore')
 
 compute = False
+show = False
+noise = True
+
+
 p = 5
-show = True
-noise = False
-
-
-n_list = np.arange(50, 1001, 20, dtype=int)
+n_list = np.arange(50, 500, 10, dtype=int)
 N = len(n_list)
 M = 100
 lambdas = np.linspace(1e-4, 0.1, M)
 
 path = "store_results/"
+
+if noise:
+	path += "noise_"
 
 if compute:
 	OLS_RR = np.zeros(N)
@@ -79,6 +82,8 @@ else:
 
 
 path = "figures/"
+if noise:
+	path += "noise_"
 RR_min = 0.6; RR_max = 1
 MSE_min = 0; MSE_max = 0.1 
 # plot OLS, 2D
