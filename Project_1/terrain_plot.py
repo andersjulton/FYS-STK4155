@@ -59,15 +59,25 @@ ny, nx = np.shape(terrain1)
 
 x, y = np.sort(np.random.uniform(0, 1, nx)), np.sort(np.random.uniform(0, 1, nx))
 x, y = np.meshgrid(x, y)
-x, y = np.ravel(x), np.ravel(y)
-X = CreateDesignMatrix_X(x, y)
+xr, yr = np.ravel(x), np.ravel(y)
+X = CreateDesignMatrix_X(xr, yr)
 
 #X_train = np.delete(X_train, i, 0)
 #X_train = np.concatenate(X_train)
 
 
-terr = terrain1[0:nx]
+terr = terrain1[0:nx]/10
 
+fig = plt.figure()
+
+xt, yt, = np.linspace(0, np.shape(terr)[0], np.shape(terr)[0]), np.linspace(0, np.shape(terr)[0], np.shape(terr)[0])
+xt, yt = np.meshgrid(xt, yt)
+
+ax1 = fig.gca(projection='3d')
+surf = ax1.plot_surface(xt, yt, terr,cmap="coolwarm", linewidth=0, antialiased=False, alpha=0.5)
+plt.show()
+
+'''
 z = np.ravel(terr)
 
 #ztilde, beta = OLS(X, z)
@@ -76,8 +86,10 @@ ztilde, beta = RIDGE(X, z, 0.1)
 zt = ztilde.reshape(nx, nx)
 
 fig = plt.figure()
+ax1 = fig.gca(projection='3d')
 ax1 = fig.add_subplot(211)
-ax1.imshow(zt, cmap='gray', extent = [0, 55.6, 0, 55.6])
+surf = ax1.plot_surface(x, y, z, cmap="coolwarm", linewidth=0, antialiased=False, alpha=0.5)
+#ax1.imshow(zt, cmap='gray', extent = [0, 55.6, 0, 55.6])
 ax1.set_xlabel('Km')
 scalebar = AnchoredSizeBar(ax1.transData,
                            10, '10 km', 'lower right')
@@ -88,3 +100,4 @@ ax2 = fig.add_subplot(212)
 ax2.imshow(terrain1[0:nx], cmap='gray', extent = [0, 55.6, 0, 55.6])
 
 plt.show()
+'''

@@ -47,15 +47,15 @@ def plot_frankeFunc(n):
 
 def plot_ML(method, n, ax):
 	x, y = np.meshgrid(np.linspace(0, 1, n), np.linspace(0, 1, n))
-	x, y = np.ravel(x), np.ravel(y)
-	z = method(x, y)
-	ax.scatter(x, y, z, c=z, cmap=cm.coolwarm)
+	xr, yr = np.ravel(x), np.ravel(y)
+	z = method(xr, yr)
+	ax.scatter(xr, yr, z, cmap="jet", c=z)
 
 
 
 def plot_compare(method):
 	ax = plot_frankeFunc(75)
-	plot_ML(method, 10, ax)
+	plot_ML(method, 50, ax)
 	plt.show()
 
 
@@ -67,7 +67,7 @@ if __name__ == "__main__":
 	franke_OLS = OLS(x, y, z, p)
 	print("R2 score from OLS: %3.6f" % franke_OLS.RR())
 	print("MSE score from OLS: %3.6f\n" % franke_OLS.MSE())
-	#plot_compare(franke_OLS)
+	plot_compare(franke_OLS)
 
 
 	l = 0.01

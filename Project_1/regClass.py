@@ -69,19 +69,20 @@ class Regression(object):
             self.X = np.ma.compress_rows(X_train)
             self.z = z_train.compressed()
             self.learn()
-
-            kR2 += self.R2()
-            kMSE += self.MSE()
             z_train.mask[isplit[i]] = False
             X_train.mask[isplit[i],:] = False
+            self.z_tilde = X_train[isplit[i],:] @ self.beta
+            self.z = z_train[isplit[i]]
+            kR2 += self.R2()
+            kMSE += self.MSE()
 
         return kR2/k, kMSE/k
 
-    # the RR coefficient of determination.
-    def RR(self):
-        RR_res = np.sum((self.z - self.z_tilde)**2)
-        RR_tot = np.sum((self.z - np.mean(self.z))**2)
-        return 1 - RR_res/RR_tot
+    # the R2 coefficient of determination.
+    def R2(self):
+        R2_res = np.sum((self.z - self.z_tilde)**2)
+        R2_tot = np.sum((self.z - np.mean(self.z))**2)
+        return 1 - R2_res/R2_tot
 
 
     # mean squared error
@@ -93,7 +94,7 @@ class Regression(object):
 
 
     # residual sum of squares
-    def RRS(self):
+    def R2S(self):
         return sum((self.z - self.z_tilde)**2)
 
 
@@ -125,14 +126,14 @@ class OLS(Regression):
         self.z_tilde = self.X @ self.beta
         end = time()
         print("Old: %.3e" %float(end - start))
-        score = self.RR()
+        score = self.R2()
         # time new version
         start = time()
         self.learn()
         end = time()
         print("New: %.3e" %float(end - start))
-        # compare RR
-        assert abs(score - self.RR()) < 1e-12, "Assumtion of Beta in OLS is wrong?"
+        # compare R2
+        assert abs(score - self.R2()) < 1e-12, "Assumtion of Beta in OLS is wrong?"
 
 
 
@@ -166,4 +167,4 @@ class LASSO(Regression):
     def test(self):
         lasso = skl.Lasso(alpha=self.l).fit(self.X, self.z)
         score = lasso.score(self.X, self.z)
-        assert abs(score - self.RR()) < 1e-12, "Assumtion of Beta in Lasso is wrong?"
+        assert abs(score - self.R2()) < 1e-12, "Assumtion of Beta in Lasso is wrong?"
