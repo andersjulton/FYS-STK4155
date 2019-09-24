@@ -14,7 +14,6 @@ class Regression(object):
             X = self.CreateDesignMatrix(x, y)
         return X @ self.beta
 
-
     # abstract method for regression
     def fit(self, X, z):
         pass
@@ -36,34 +35,26 @@ class Regression(object):
         return X
 
 
-    def TTsplit(self, x, y, z, test_size):
-        X = self.CreateDesignMatrix(x, y)
-        interval = np.sort(np.random.choice(len(z), replace=False, size=int(len(z)*test_size)))
-        X_test, z_test = X[interval,:], z[interval]
-        X_train, z_train = np.ma.array(X, mask=False), np.ma.array(z, mask=False)
-        z_train.mask[interval] = True
-        X_train.mask[interval,:] = True
-        X = np.ma.compress_rows(X_train)
-        z = z_train.compressed()
-        self.fit(X, z)
-        return X_test, z_test
-
-
-
     def confIntBeta(self, x, y, z):
         X = self.CreateDesignMatrix(x, y)
-        varbeta = np.sqrt(np.linalg.inv(self.X.T @ self.X)).diagonal()
+        self.fit(X, z)
+        ztilde = self(X)
+        E, P = np.linalg.eigh(X.T @ X)
+        D_inv = np.diag(1/E)
+        varbeta = np.sqrt(P @ D_inv @ P.T).diagonal()
+        zSTD = np.sum((z - ztilde)**2)/(len(z) - len(self.beta) - 1)
+        betaSTD = np.sqrt(zSTD)*varbeta
         percentiles = [99, 98, 95, 90]
-        z = [2.576, 2.326, 1.96, 1.645]
-        sigmaSQ = np.sum((self.z - self.z_tilde)**2)/(len(self.z) - len(self.beta) - 1)
+        alpha = [2.576, 2.326, 1.96, 1.645]
         for k in range(len(self.beta)):
             print("Confidence interval for beta %i" % (k + 1))
             for i, n in enumerate(percentiles):
-                print("%2i%%: %3.2f +- %3.2f" % (percentiles[i], self.beta[k], z[i]*np.sqrt(sigmaSQ)*varbeta[k]))
+                print("%2i%%: %3.2f +- %3.2f" % (percentiles[i], self.beta[k], alpha[i]*betaSTD[k]))
 
 
     # k-fold cross validation
     def kFoldCV(self, x, y, z, k):
+        N = len(x)
         R2 = 0;    MSE = 0
         # shuffled array of indices
         indices = np.linspace(0, N-1, N)
@@ -80,7 +71,7 @@ class Regression(object):
             train = test == False                                   # rest is train
 
             self.fit(X[train], z[train])
-            z_tilde = self(X[train])
+            z_tilde = self(X[test])
 
             R2 += self.R2(z[test], z_tilde)
             MSE += self.MSE(z[test], z_tilde)

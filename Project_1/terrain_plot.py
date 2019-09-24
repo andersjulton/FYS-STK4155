@@ -32,14 +32,11 @@ def CreateDesignMatrix_X(x, y, n = 5):
     return X
 
 def OLS(X, z):
-    #U, s, VT = np.linalg.svd(X)
-    #D = np.diag(s**2)
-    #Xinv = np.linalg.inv(VT.T @ D @ VT)
-    lin = skl.LinearRegression().fit(X, z)
-    beta = lin.coef_
-    #beta = np.linalg.inv(X.T.dot(X)).dot(X.T).dot(z)
-    #beta = Xinv @ X.T @ z
+    E, P = np.linalg.eigh(X.T @ X)
+    D_inv = np.diag(1/E)
+    beta = P @ D_inv @ P.T @ X.T @ z
     ztilde = X @ beta
+
     return ztilde, beta
 
 def RIDGE(X, z, l):
@@ -57,26 +54,25 @@ def MSE(y, ytilde):
 
 ny, nx = np.shape(terrain1)
 
-x, y = np.sort(np.random.uniform(0, 1, nx)), np.sort(np.random.uniform(0, 1, nx))
+x, y = np.linspace(0, nx/max(nx, ny), nx), np.linspace(0, ny/max(nx, ny), ny)
+
 x, y = np.meshgrid(x, y)
 xr, yr = np.ravel(x), np.ravel(y)
 X = CreateDesignMatrix_X(xr, yr)
 
 
-terr = terrain1[0:nx]
-
+terr = terrain1
 
 z = np.ravel(terr)
 
-#ztilde, beta = OLS(X, z)
 ztilde, beta = RIDGE(X, z, 0.1)
+#ztilde, beta = OLS(X, z)
 
-zt = ztilde.reshape(nx, nx)
+zt = ztilde.reshape(ny, nx)
 
 fig = plt.figure()
 ax1 = fig.add_subplot(211)
-surf = ax1.imshow(zt, cmap="gray", extent = [0, 55.6, 0, 55.6])
-#ax1.imshow(zt, cmap='gray', extent = [0, 55.6, 0, 55.6])
+ax1.imshow(zt, cmap='gray')#, extent = [0, 55.6, 0, 55.6])
 ax1.set_xlabel('Km')
 scalebar = AnchoredSizeBar(ax1.transData,
                            10, '10 km', 'lower right')
@@ -84,6 +80,6 @@ scalebar = AnchoredSizeBar(ax1.transData,
 ax1.add_artist(scalebar)
 
 ax2 = fig.add_subplot(212)
-ax2.imshow(terrain1[0:nx], cmap='gray', extent = [0, 55.6, 0, 55.6])
+ax2.imshow(terrain1, cmap='gray')#, extent = [0, 55.6, 0, 55.6])
 
 plt.show()

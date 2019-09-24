@@ -1,16 +1,16 @@
 from franke import *
 from regClass import OLS, LASSO, RIDGE
-import matplotlib.pyplot as plt 
+import matplotlib.pyplot as plt
 import numpy as np
+
+np.random.seed(2019)
 
 # I AM SO SORRY
 import warnings
 warnings.filterwarnings('ignore')
 
-
 fsize = 15 				# universal fontsize for plots
 path = "figures/"
-
 
 
 def plot_MSE_R2(n, noise):
@@ -19,24 +19,22 @@ def plot_MSE_R2(n, noise):
 	lasso = LASSO(p, 0)
 	ridge = RIDGE(p, 0)
 
-	M = 50
-	lambdas = np.linspace(-4, -1, M) # log_10
+	M = 20
+	lambdas = np.logspace(-4, -1, M)
 	MSE = np.zeros((3, M))
 	R2 = np.zeros((3, M))
+
+	x, y, z = get_train_data(n, noise=noise)
+	X = ols.CreateDesignMatrix(x, y)
+
 	for i in range(M):
-		lasso.l = 10**lambdas[i]
-		ridge.l = 10**lambdas[i]
+		lasso.l = lambdas[i]
+		ridge.l = lambdas[i]
 		# TRAIN
-		x, y, z = get_train_data(n, noise=noise)
-		X = ols.CreateDesignMatrix(x, y)
+
 		ols.fit(X, z)
 		lasso.fit(X, z)
 		ridge.fit(X, z)
-
-		# ---- delete if test is on train data
-		x, y, z = get_test_data(50, noise=noise)
-		X = ols.CreateDesignMatrix(x, y)
-		# ...............................
 
 		MSE[0][i] = ols.MSE(z, ols(X))
 		MSE[1][i] = ridge.MSE(z, ridge(X))
@@ -54,9 +52,9 @@ def plot_MSE_R2(n, noise):
 	else:
 		end = str(n) + ".pdf"
 		title += "without noise"
-	plt.plot(lambdas, MSE[0], label="OLS")
-	plt.plot(lambdas, MSE[1], label="RIDGE")
-	plt.plot(lambdas, MSE[2], label="LASSO")
+	plt.semilogx(lambdas, MSE[0], label="OLS")
+	plt.semilogx(lambdas, MSE[1], label="RIDGE")
+	plt.semilogx(lambdas, MSE[2], label="LASSO")
 	plt.title("MSE" + title)
 	plt.legend(fontsize=fsize)
 	plt.xlabel(r"$log_{10}(\lambda)$", fontsize=fsize)
@@ -65,9 +63,9 @@ def plot_MSE_R2(n, noise):
 	plt.savefig(path + "MSE_methods_" + end)
 	plt.show()
 
-	plt.plot(lambdas, R2[0], label="OLS")
-	plt.plot(lambdas, R2[1], label="RIDGE")
-	plt.plot(lambdas, R2[2], label="LASSO")
+	plt.semilogx(lambdas, R2[0], label="OLS")
+	plt.semilogx(lambdas, R2[1], label="RIDGE")
+	plt.semilogx(lambdas, R2[2], label="LASSO")
 	plt.title(r"$R^2$" + title)
 	plt.legend(fontsize=fsize)
 	plt.xlabel(r"$log_{10}(\lambda)$", fontsize=fsize)
@@ -78,17 +76,17 @@ def plot_MSE_R2(n, noise):
 
 
 if True:
-	n = 20
-	plot_MSE_R2(n, True)
-	plot_MSE_R2(n, False)
+	#n = 20
+	#plot_MSE_R2(n, True)
+	#plot_MSE_R2(n, False)
 
 	n = 50
 	plot_MSE_R2(n, True)
 	plot_MSE_R2(n, False)
 
-	n = 100
-	plot_MSE_R2(n, True)
-	plot_MSE_R2(n, False)
+	#n = 100
+	#plot_MSE_R2(n, True)
+	#plot_MSE_R2(n, False)
 
 
 
@@ -131,7 +129,3 @@ if False:
 	plot_MSE_test_train(train_data, test_data, OLS(0), p_max=10)
 	plot_MSE_test_train(train_data, test_data, RIDGE(0 ,0.001), p_max=20)
 	plot_MSE_test_train(train_data, test_data, LASSO(0, 0.001), p_max=20)
-
-
-
-
