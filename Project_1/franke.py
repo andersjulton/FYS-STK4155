@@ -14,17 +14,31 @@ def FrankeFunction(x, y):
 	return term1 + term2 + term3 + term4
 
 
-def get_train_data(n):
+def get_noise(n):
+	return np.random.normal(loc=0.0, scale=1, size=n) 
+
+
+def get_train_data(n, noise=False):
 	x = np.sort(np.random.uniform(0, 1, n))
 	y = np.sort(np.random.uniform(0, 1, n))
 	x, y = np.meshgrid(x, y)
-	z = FrankeFunction(x, y)
-	return np.ravel(x), np.ravel(y), np.ravel(z)
+	f = np.ravel(FrankeFunction(x, y))
+	if noise:
+		z = f + get_noise(n*n)
+	else:
+		z = f
+	return np.ravel(x), np.ravel(y), z
 
-def get_test_data(n):
+
+def get_test_data(n, noise=False):
 	x, y = np.meshgrid(np.linspace(0, 1, n), np.linspace(0, 1, n))
-	z = FrankeFunction(x, y)
-	return np.ravel(x), np.ravel(y), np.ravel(z)
+	f = np.ravel(FrankeFunction(x, y))
+	if noise:
+		z = f + get_noise(n*n) 
+	else:
+		z = f
+	return np.ravel(x), np.ravel(y), z
+
 
 
 def plot_frankeFunc(n):
@@ -58,9 +72,7 @@ def plot_compare(method):
 	plot_ML(method, 50, ax)
 	plt.show()
 
-
-
-
+print(get_noise(10))
 
 if __name__ == "__main__":
 	p = 5

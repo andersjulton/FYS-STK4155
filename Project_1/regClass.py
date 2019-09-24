@@ -121,6 +121,9 @@ class OLS(Regression):
         D_inv = np.diag(1/E)
         self.beta = P @ D_inv @ P.T @ X.T @ z
 
+    def __str__(self):
+        return "OLS"
+
 
 
 class RIDGE(Regression):
@@ -132,6 +135,9 @@ class RIDGE(Regression):
     def fit(self, X, z):
         I = np.identity(len(X[0]))
         self.beta = np.linalg.inv(X.T @ X + self.l*I) @ X.T @ z
+
+    def __str__(self):
+        return "RIDGE"
 
 
 
@@ -145,3 +151,6 @@ class LASSO(Regression):
         lasso = skl.Lasso(alpha=self.l).fit(X, z)
         self.beta = lasso.coef_
         self.beta[0] = lasso.intercept_
+
+    def __str__(self):
+        return "LASSO"
