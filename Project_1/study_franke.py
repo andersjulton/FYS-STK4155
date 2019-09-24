@@ -33,8 +33,10 @@ def plot_MSE_R2(n, noise):
 		lasso.fit(X, z)
 		ridge.fit(X, z)
 
+		# ---- delete if test is on train data
 		x, y, z = get_test_data(50, noise=noise)
 		X = ols.CreateDesignMatrix(x, y)
+		# ...............................
 
 		MSE[0][i] = ols.MSE(z, ols(X))
 		MSE[1][i] = ridge.MSE(z, ridge(X))
