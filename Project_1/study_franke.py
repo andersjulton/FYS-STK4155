@@ -9,7 +9,7 @@ np.random.seed(2019)
 import warnings
 warnings.filterwarnings('ignore')
 
-fsize = 15 				# universal fontsize for plots
+fsize = 10				# universal fontsize for plots
 path = "figures/"
 
 
@@ -75,6 +75,7 @@ def plot_MSE_R2(n, noise):
 	plt.show()
 
 
+# plotting confidence interval of beta
 if False:
 	#n = 20
 	#plot_MSE_R2(n, True)
@@ -111,7 +112,7 @@ def plot_conf_beta(method, n):
 			color=colors[1], marker='.', markersize=7, elinewidth=2,\
 			alpha=0.5)
 	xticks = [r'$\beta_{%d}$'%i for i in range(N)]
-	plt.xticks(range(N), xticks)
+	plt.xticks(range(N), xticks, fontsize=fsize)
 	plt.xlim(-1, N)
 	plt.tight_layout()
 	plt.savefig(path + "confIntBeta_" + str(method) + ".pdf")
@@ -124,10 +125,6 @@ if True:
 	plot_conf_beta(OLS(5), n)
 	plot_conf_beta(RIDGE(5, 0.001), n)
 	plot_conf_beta(LASSO(5, 0.0005), n)
-
-
-
-
 
 
 
