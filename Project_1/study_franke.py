@@ -9,7 +9,7 @@ np.random.seed(2019)
 import warnings
 warnings.filterwarnings('ignore')
 
-fsize = 15 				# universal fontsize for plots
+fsize = 10				# universal fontsize for plots
 path = "figures/"
 
 
@@ -75,7 +75,8 @@ def plot_MSE_R2(n, noise):
 	plt.show()
 
 
-if True:
+# plotting confidence interval of beta
+if False:
 	#n = 20
 	#plot_MSE_R2(n, True)
 	#plot_MSE_R2(n, False)
@@ -88,6 +89,42 @@ if True:
 	#plot_MSE_R2(n, True)
 	#plot_MSE_R2(n, False)
 
+
+
+def plot_conf_beta(method, n):
+	x, y, z = get_train_data(n, noise=False)
+	betaSTD_f = method.confIntBeta(x, y, z)
+	beta_f = method.beta
+	x, y, z = get_train_data(n, noise=True)
+	betaSTD_z = method.confIntBeta(x, y, z)
+	beta_z = method.beta
+	N = len(beta_z)
+	colors = ["mediumblue","crimson"] 
+	plt.plot(-10, -1, color=colors[0], label="without noise")
+	plt.plot(-10, -1, color=colors[1], label="with noise")
+	plt.legend()
+
+	for i in range(N):
+		plt.errorbar(i, beta_f[i], yerr=betaSTD_f[i], capsize=4, \
+			color=colors[0], marker='.', markersize=7, elinewidth=2,\
+			alpha=0.5)
+		plt.errorbar(i, beta_z[i], yerr=betaSTD_z[i], capsize=4, \
+			color=colors[1], marker='.', markersize=7, elinewidth=2,\
+			alpha=0.5)
+	xticks = [r'$\beta_{%d}$'%i for i in range(N)]
+	plt.xticks(range(N), xticks, fontsize=fsize)
+	plt.xlim(-1, N)
+	plt.tight_layout()
+	plt.savefig(path + "confIntBeta_" + str(method) + ".pdf")
+	plt.grid()
+	plt.show()
+
+
+if True:
+	n = 100
+	plot_conf_beta(OLS(5), n)
+	plot_conf_beta(RIDGE(5, 0.001), n)
+	plot_conf_beta(LASSO(5, 0.0005), n)
 
 
 
