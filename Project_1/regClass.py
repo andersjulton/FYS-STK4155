@@ -46,10 +46,13 @@ class Regression(object):
         betaSTD = np.sqrt(zSTD)*varbeta
         percentiles = [99, 98, 95, 90]
         alpha = [2.576, 2.326, 1.96, 1.645]
+        '''
         for k in range(len(self.beta)):
             print("Confidence interval for beta %i" % (k + 1))
             for i, n in enumerate(percentiles):
                 print("%2i%%: %3.2f +- %3.2f" % (percentiles[i], self.beta[k], alpha[i]*betaSTD[k]))
+        '''
+        return betaSTD*alpha[0]
 
 
     # k-fold cross validation
