@@ -55,8 +55,8 @@ def get_test_train_data(N, test_size, noise=False):
 	else:
 		z_test = np.ravel(FrankeFunction(x_test, y_test))
 		z_train = np.ravel(FrankeFunction(x_train, y_train))
-	test = [np.ravel(x_test), np.ravel(y_test), z_test]
-	train = [np.ravel(x_train), np.ravel(y_train), z_train]
+	test = (np.ravel(x_test), np.ravel(y_test), z_test)
+	train = (np.ravel(x_train), np.ravel(y_train), z_train)
 
 	return test, train
 

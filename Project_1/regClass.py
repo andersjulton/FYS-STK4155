@@ -101,9 +101,6 @@ class Regression(object):
 
 
 
-
-
-
 class OLS(Regression):
 
     def fit(self, X, z):
