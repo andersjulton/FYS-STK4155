@@ -67,6 +67,7 @@ class Regression(object):
         size = N//k         # size of each interval
         mod = N % k         # in case k is not a factor in N
         end = 0
+        ztilde = np.zeros((k, int(len(z)/(k))))
 
         for i in range(k):
             start = end
@@ -75,13 +76,13 @@ class Regression(object):
             train = test == False                                   # rest is train
 
             self.fit(X[train], z[train])
-            z_tilde = self(X[test])
+            ztilde[i] = self(X[test])
 
-            R2 += self.R2(z[test], z_tilde)
-            MSE += self.MSE(z[test], z_tilde)
+            #R2 += self.R2(z[test], z_tilde)
+            #MSE += self.MSE(z[test], z_tilde)
 
 
-        return R2/k, MSE/k
+        return ztilde#R2/k, MSE/k
 
 
     # the RR coefficient of determination.

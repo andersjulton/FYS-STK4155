@@ -2,8 +2,9 @@ from franke import *
 from regClass import OLS, LASSO, RIDGE
 import matplotlib.pyplot as plt
 import numpy as np
+import tqdm
 
-np.random.seed(2019)
+#np.random.seed(2019)
 
 # I AM SO SORRY
 import warnings
@@ -12,83 +13,110 @@ warnings.filterwarnings('ignore')
 fsize = 10				# universal fontsize for plots
 path = "figures/"
 
+def plot_OLS():
+	ols = OLS(5)
+	N = np.linspace(50, 150, 101, dtype="int16")
+	m = np.linspace(0, 9, 10, dtype="int16")
+	MSE, R2 = np.zeros((10,101)), np.zeros((10, 101))
+
+	for i in tqdm.tqdm(m):
+		for j, n in enumerate(N):
+			x, y, z = get_train_data(n, noise=False)
+			xn, yn, zn = get_train_data(n, noise=True)
+			Xn = ols.CreateDesignMatrix(xn, yn)
+			X = ols.CreateDesignMatrix(x, y)
+			ols.fit(Xn, zn)
+
+			MSE[i][j] = ols.MSE(z, ols(X))
+			R2[i][j] = ols.R2(z, ols(X))
+
+	plt.plot(N, np.mean(MSE, axis=0))
+	plt.ylabel("MSE", fontsize=fsize)
+	plt.xlabel("n", fontsize=fsize)
+	plt.savefig("OLS(n)_MSE.pdf")
+	plt.show()
+
+	plt.plot(N, np.mean(R2, axis=0))
+	plt.ylabel("R2", fontsize=fsize)
+	plt.xlabel("n", fontsize=fsize)
+	plt.savefig("OLS(n)_R2.pdf")
+
+	plt.show()
+
+if True:
+	plot_OLS()
 
 def plot_MSE_R2(n, noise):
 	p = 5
-	ols = OLS(p)
-	lasso = LASSO(p, 0)
 	ridge = RIDGE(p, 0)
+	lasso = LASSO(p, 0)
 
-	M = 20
-	lambdas = np.logspace(-4, -1, M)
-	MSE = np.zeros((3, M))
-	R2 = np.zeros((3, M))
+	M = 200
+	lambdasR = np.logspace(-6, -2, M)
+	lambdasL = np.logspace(-6, -2, M)
+	lambdas = [lambdasR, lambdasL]
+	MSE = np.zeros((2, M))
+	R2 = np.zeros((2, M))
 
-	x, y, z = get_train_data(n, noise=noise)
-	X = ols.CreateDesignMatrix(x, y)
+	test, train = get_test_train_data(n, test_size=0.2, noise=noise)
+	xtrain, ytrain, ztrain = train
+	xtest, ytest, ztest = test
+	Xtrain = ridge.CreateDesignMatrix(xtrain, ytrain)
+	Xtest = ridge.CreateDesignMatrix(xtest, ytest)
 
 	for i in range(M):
-		lasso.l = lambdas[i]
-		ridge.l = lambdas[i]
-		# TRAIN
-
-		ols.fit(X, z)
-		lasso.fit(X, z)
-		ridge.fit(X, z)
-
-		MSE[0][i] = ols.MSE(z, ols(X))
-		MSE[1][i] = ridge.MSE(z, ridge(X))
-		MSE[2][i] = lasso.MSE(z, lasso(X))
-
-		R2[0][i] = ols.R2(z, ols(X))
-		R2[1][i] = ridge.R2(z, ridge(X))
-		R2[2][i] = lasso.R2(z, lasso(X))
+		ridge.l = lambdas[0][i]
+		lasso.l = lambdas[1][i]
 
 
-	title = " for n = %d " %n
-	if noise:
-		end = str(n) + "_noise.pdf"
-		title += "with noise"
-	else:
-		end = str(n) + ".pdf"
-		title += "without noise"
-	plt.semilogx(lambdas, MSE[0], label="OLS")
-	plt.semilogx(lambdas, MSE[1], label="RIDGE")
-	plt.semilogx(lambdas, MSE[2], label="LASSO")
-	plt.title("MSE" + title)
-	plt.legend(fontsize=fsize)
-	plt.xlabel(r"$log_{10}(\lambda)$", fontsize=fsize)
-	plt.ylabel("MSE", fontsize=fsize)
-	plt.tight_layout()
-	plt.savefig(path + "MSE_methods_" + end)
-	plt.show()
+		ridge.fit(Xtrain, ztrain)
+		MSE[0][i] = ridge.MSE(ztest, ridge(Xtest))
+		R2[0][i] = ridge.R2(ztest, ridge(Xtest))
 
-	plt.semilogx(lambdas, R2[0], label="OLS")
-	plt.semilogx(lambdas, R2[1], label="RIDGE")
-	plt.semilogx(lambdas, R2[2], label="LASSO")
-	plt.title(r"$R^2$" + title)
-	plt.legend(fontsize=fsize)
-	plt.xlabel(r"$log_{10}(\lambda)$", fontsize=fsize)
-	plt.ylabel("$R^2$", fontsize=fsize)
-	plt.tight_layout()
-	plt.savefig(path + "R2_methods_" + end)
-	plt.show()
+		lasso.fit(Xtrain, ztrain)
+		MSE[1][i] = lasso.MSE(ztest, lasso(Xtest))
+		R2[1][i] = lasso.R2(ztest, lasso(Xtest))
+
+	labels = ["RIDGE", "LASSO"]
+
+	for i in range(2):
+		title = " for n = %d " %n
+		if noise:
+			end = str(n) + "_noise.pdf"
+			title += "with noise"
+		else:
+			end = str(n) + "_.pdf"
+			title += "without noise"
+		minMSE = np.argmin(MSE[i])
+		maxR2 = np.argmax(R2[i])
+
+		MSEind = np.linspace(minMSE - 30, minMSE + 30, 61, dtype="int16")
+		R2ind = np.linspace(maxR2 - 30, maxR2 + 30, 61, dtype="int16")
+		plt.semilogx(lambdas[i], MSE[i], label=labels[i])
+		plt.scatter(lambdas[i][minMSE], MSE[i][minMSE], color='r', label=r"$\lambda = %1.5f$" % lambdas[i][minMSE])
+		plt.title("MSE" + title)
+		plt.legend(fontsize=fsize)
+		plt.xlabel(r"$log_{10}(\lambda)$", fontsize=fsize)
+		plt.ylabel("MSE", fontsize=fsize)
+		plt.tight_layout()
+		plt.savefig(path + "MSE_methods_" + labels[i] + "_" + end)
+		plt.show()
+
+		plt.semilogx(lambdas[i], R2[i], label=labels[i])
+		plt.scatter(lambdas[i][maxR2], R2[i][maxR2], color='r', label=r"$\lambda = %1.5f$" % lambdas[i][maxR2])
+		plt.title(r"$R^2$" + title)
+		plt.legend(fontsize=fsize)
+		plt.xlabel(r"$log_{10}(\lambda)$", fontsize=fsize)
+		plt.ylabel("$R^2$", fontsize=fsize)
+		plt.tight_layout()
+		plt.savefig(path + "R2_methods_" + labels[i] + "_" + end)
+		plt.show()
 
 
-# plotting confidence interval of beta
+# plotting RIDGE and LASSO as functions of lambda
 if False:
-	#n = 20
-	#plot_MSE_R2(n, True)
-	#plot_MSE_R2(n, False)
-
 	n = 50
 	plot_MSE_R2(n, True)
-	plot_MSE_R2(n, False)
-
-	#n = 100
-	#plot_MSE_R2(n, True)
-	#plot_MSE_R2(n, False)
-
 
 
 def plot_conf_beta(method, n):
@@ -163,7 +191,7 @@ def plot_MSE_test_train(train_data, test_data, method, p_max=20):
 
 
 # plotting MSE for training data & test data
-if True:
+if False:
 	n = 50
 	train_data = get_train_data(n, noise=True)
 	test_data = get_test_data(n, noise=True)

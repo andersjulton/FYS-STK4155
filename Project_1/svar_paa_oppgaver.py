@@ -7,6 +7,7 @@ from sklearn.pipeline import make_pipeline
 from sklearn.utils import resample
 from franke import *
 from regClass import OLS, LASSO, RIDGE
+import tqdm
 
 np.random.seed(2019)
 """
@@ -37,10 +38,24 @@ def partA():
 Part B
 """
 k = 10
-test, train = get_test_train_data(200, 1./k, True)
+n = 110
+test, train = get_test_train_data(n, 1/(k + 1), False)
+ztest = test[-1]
 
-ols = OLS(5)
-ztilde, MSE, R2 = ols.kFoldCV(train[0], train[1], train[2], k, len(test[-1]))
+p = np.arange(1,9)
+error = np.zeros(len(p))
+bias = error.copy()
+variance = error.copy()
 
-MSE = np.mean(np.mean((test[-1] - ztilde)**2, axis=1, keepdims=True))
-print(MSE)
+for i, deg in enumerate(tqdm.tqdm(p)):
+    ols = RIDGE(deg, 0.00034)
+    ztilde = ols.kFoldCV(train[0], train[1], train[2], k)
+
+    error[i] = np.mean( np.mean((ztest - ztilde)**2, axis=1, keepdims=True) )
+    bias[i] = np.mean( (ztest - np.mean(ztilde, axis=1, keepdims=True))**2 )
+    variance[i] = np.mean( np.var(ztilde, axis=1, keepdims=True) )
+
+plt.plot(p, error)
+plt.plot(p, bias)
+plt.plot(p, variance)
+plt.show()
