@@ -6,28 +6,24 @@ from regClass import OLS, LASSO, RIDGE
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
 from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
+from timeit import default_timer as timer
 
+fsize = 10
+Compute_K_fold = True
+
+def get_data_x_y_z(terrain_data):
+    ny, nx = np.shape(terrain_data)
+    x, y = np.linspace(0, nx/max(nx, ny), nx), np.linspace(0, ny/max(nx, ny), ny)
+    x, y = np.meshgrid(x, y)
+    return np.ravel(x), np.ravel(y), np.ravel(terrain_data)
+ 
 
 def get_data(terrain_data, p):
-    ny, nx = np.shape(terrain_data)
-    #x, y = np.sort(np.random.uniform(0, 1, nx)), np.sort(np.random.uniform(0, 1, ny))
-    x, y = np.linspace(0, 1, nx), np.linspace(0, 1, ny)
-    x, y = np.linspace(0, nx/max(nx, ny), nx), np.linspace(0, ny/max(nx, ny), ny)
-    print(nx/max(nx, ny), ny/max(nx, ny))
-    x, y = np.meshgrid(x, y)
-    x, y = np.ravel(x), np.ravel(y)
-
-    #z = terrain_data[0:nx]
-    z = terrain_data
-    print(np.shape(z))
-    z = np.ravel(z)
-
-
-    print(len(x), len(y), len(z))
-    print("X begynner")
+    x, y, z = get_data_x_y_z(terrain_data)
     X = OLS(p).CreateDesignMatrix(x, y)
-    print("X ferdig")
     return X, z
+
+
 
 
 
@@ -41,16 +37,32 @@ def plot_reg(method, filename, p):
     terrain = imread(filename)
     nx, ny = np.shape(terrain)
     X, z = get_data(terrain, p)
-    print("ZERO")
     method.p = p
     method.fit(X, z)
-    print("ONE")
     new_terrain = method(X)
-    print("TWO")
     new_terrain = new_terrain.reshape(nx, ny)
     plt.imshow(new_terrain)
     plt.savefig("figures/terrain_%d.pdf" %p)
     plt.show()
+
+
+def K_fold(method, filename):
+    start = timer()
+    terrain = imread(filename)
+    x, y, z = get_data_x_y_z(terrain)
+    p_list = np.arange(2, 12, 1, dtype=int)
+    N = len(p_list)
+    k_fold = np.zeros((N, 2))
+    for i in range(N):
+        print(p_list[i], end=" ", flush=True)
+        method.p = p_list[i]
+        k_fold[i] = method.kFoldCV(x, y, z, k=10)
+    end = timer()
+    print()
+    print(str(method), "used %.3g h" %(float(end - start)/3600))
+    data = {'R2': k_fold[:, 0], 'MSE' : k_fold[:, 1]}
+    np.savez("store_results/terrain_kfold_" + str(method), **data)
+
 
 
 
@@ -63,12 +75,46 @@ terrain = imread(filename)
 #print(np.shape(np.ravel(terrain)))
 
 
-ols = OLS(p)
-ridge = RIDGE(p, 0.001)
-lasso = LASSO(p, 0.001)
-plot(terrain)
-for p in range(3, 15):
-    plot_reg(ols, filename, p)
+if Compute_K_fold:
+    ols = OLS(0)
+    ridge = RIDGE(0, 0.001)
+    lasso = LASSO(0, 0.001)
+    K_fold(ols, filename)
+    K_fold(ridge, filename)
+    K_fold(lasso, filename)
+
+
+path = "store_results/terrain_kfold_"
+ols = np.load(path+ "OLS.npz")
+ridge = np.load(path + "RIDGE.npz")
+lasso = np.load(path + "LASSO.npz")
+
+path = "figures/terrain_kfold_" 
+p_list = np.arange(2, 12, 1, dtype=int)
+plt.plot(p_list, ols["MSE"], label="OLS")
+plt.plot(p_list, ridge["MSE"], label="RIDGE")
+plt.plot(p_list, lasso["MSE"], label="LASSO")
+plt.legend(fontsize=fsize)
+plt.xticks(p_list, p_list)
+plt.xlabel("polynomial degree", fontsize=fsize)
+plt.ylabel("MSE", fontsize=fsize)
+plt.tight_layout()
+plt.savefig(path + "MSE.pdf")
+plt.show()
+
+plt.plot(p_list, ols["R2"], label="OLS")
+plt.plot(p_list, ridge["R2"], label="RIDGE")
+plt.plot(p_list, lasso["R2"], label="LASSO")
+plt.legend(fontsize=fsize)
+plt.xticks(p_list, p_list)
+plt.xlabel("polynomial degree", fontsize=fsize)
+plt.ylabel(r"$R^2$", fontsize=fsize)
+plt.tight_layout()
+plt.savefig(path + "R2.pdf")
+plt.show()
+
+
+
 
 
 
