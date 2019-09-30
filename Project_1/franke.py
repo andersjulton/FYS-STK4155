@@ -41,22 +41,21 @@ def get_test_data(n, noise=False):
 
 def get_test_train_data(N, test_size, noise=False):
 	x, y = np.sort(np.random.uniform(0, 1, N)), np.sort(np.random.uniform(0, 1, N))
-
-	indices = np.linspace(0, N-1, N)
-	n = int(N*test_size)
+	x, y = np.meshgrid(x, y)
+	f = np.ravel(FrankeFunction(x, y))
+	if noise:
+		z = f + get_noise(N*N)
+	else:
+		z = f
+		
+	indices = np.linspace(0, N*N-1, N*N)
+	n = int(N*N*test_size)
 	np.random.shuffle(indices)
 	test = np.logical_and(indices >= 0, indices < n)
 	train = test == False
-	x_test, y_test = np.meshgrid(x[test], y[test])
-	x_train, y_train = np.meshgrid(x[train], y[train])
-	if noise:
-		z_test = np.ravel(FrankeFunction(x_test, y_test)) + get_noise(n*n)
-		z_train = np.ravel(FrankeFunction(x_train, y_train)) + get_noise((N-n)**2)
-	else:
-		z_test = np.ravel(FrankeFunction(x_test, y_test))
-		z_train = np.ravel(FrankeFunction(x_train, y_train))
-	test = (np.ravel(x_test), np.ravel(y_test), z_test)
-	train = (np.ravel(x_train), np.ravel(y_train), z_train)
+
+	test = (np.ravel(x)[test], np.ravel(y)[test], z[test])
+	train = (np.ravel(x)[train], np.ravel(y)[train], z[train])
 
 	return test, train
 

@@ -36,15 +36,11 @@ def partA():
 """
 Part B
 """
-test, train = get_test_train_data(200, 0.2, True)
+k = 10
+test, train = get_test_train_data(200, 1./k, True)
 
 ols = OLS(5)
-X_test = ols.CreateDesignMatrix(test[0], test[1])
-ols.fit(X_test, test[2])
-ztilde_test = ols(X_test)
-MSE_test, R2_test = ols.MSE(test[1], ztilde_test), ols.R2(test[1], ztilde_test)
+ztilde, MSE, R2 = ols.kFoldCV(train[0], train[1], train[2], k, len(test[-1]))
 
-MSE_train, R2_train = ols.kFoldCV(train[0], train[1], train[2], 10)
-
-print(MSE_test, MSE_train)
-#print(R2_test, R2_train)
+MSE = np.mean(np.mean((test[-1] - ztilde)**2, axis=1, keepdims=True))
+print(MSE)

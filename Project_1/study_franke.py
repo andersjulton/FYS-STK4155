@@ -99,7 +99,7 @@ def plot_conf_beta(method, n):
 	betaSTD_z = method.confIntBeta(x, y, z)
 	beta_z = method.beta
 	N = len(beta_z)
-	colors = ["mediumblue","crimson"] 
+	colors = ["mediumblue","crimson"]
 	plt.plot(-10, -1, color=colors[0], label="without noise")
 	plt.plot(-10, -1, color=colors[1], label="with noise")
 	plt.legend()
@@ -120,12 +120,11 @@ def plot_conf_beta(method, n):
 	plt.show()
 
 
-if True:
+if False:
 	n = 100
 	plot_conf_beta(OLS(5), n)
 	plot_conf_beta(RIDGE(5, 0.001), n)
 	plot_conf_beta(LASSO(5, 0.0005), n)
-
 
 
 def plot_MSE_test_train(train_data, test_data, method, p_max=20):
@@ -134,6 +133,8 @@ def plot_MSE_test_train(train_data, test_data, method, p_max=20):
 	x_test, y_test, z_test = test_data
 	MSE_train = np.zeros(p_max-1)
 	MSE_test = np.zeros(p_max-1)
+	bias = np.zeros(p_max-1)
+	variance = np.zeros(p_max-1)
 
 	for i in range(p_max-1):
 		method.p = p_list[i]
@@ -144,11 +145,15 @@ def plot_MSE_test_train(train_data, test_data, method, p_max=20):
 		# TEST
 		X = method.CreateDesignMatrix(x_test, y_test)
 		MSE_test[i] = method.MSE(z_test, method(X))
+		bias[i] = np.mean((z_test - np.mean(method(X)))**2)
+		variance[i] = np.var(method(X))
 
 
 	figname = path + "MSE_test_train_" + str(method) + ".pdf"
 	plt.plot(p_list, MSE_train, label="Training Sample", color="red")
 	plt.plot(p_list, MSE_test, label="Test Sample", color="blue")
+	plt.plot(p_list, bias, label="bias", color="green")
+	plt.plot(p_list, variance, label="variance", color="yellow")
 	plt.legend(fontsize=fsize)
 	plt.xlabel(r"polynomial degree", fontsize=fsize)
 	plt.ylabel("MSE", fontsize=fsize)
@@ -159,10 +164,10 @@ def plot_MSE_test_train(train_data, test_data, method, p_max=20):
 
 
 # plotting MSE for training data & test data
-if False:
+if True:
 	n = 50
 	train_data = get_train_data(n, noise=True)
 	test_data = get_test_data(n, noise=True)
 	plot_MSE_test_train(train_data, test_data, OLS(0), p_max=10)
-	plot_MSE_test_train(train_data, test_data, RIDGE(0 ,0.001), p_max=20)
-	plot_MSE_test_train(train_data, test_data, LASSO(0, 0.001), p_max=20)
+	#plot_MSE_test_train(train_data, test_data, RIDGE(0 ,0.001), p_max=20)
+	#plot_MSE_test_train(train_data, test_data, LASSO(0, 0.001), p_max=20)

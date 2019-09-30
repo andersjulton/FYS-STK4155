@@ -52,13 +52,13 @@ class Regression(object):
             for i, n in enumerate(percentiles):
                 print("%2i%%: %3.2f +- %3.2f" % (percentiles[i], self.beta[k], alpha[i]*betaSTD[k]))
         '''
-        return betaSTD*alpha[0]
+        return betaSTD*alpha[1]
 
 
     # k-fold cross validation
     def kFoldCV(self, x, y, z, k):
         N = len(x)
-        R2 = 0;    MSE = 0
+        R2 = 0; MSE = 0;
         # shuffled array of indices
         indices = np.linspace(0, N-1, N)
         np.random.shuffle(indices)
@@ -67,6 +67,7 @@ class Regression(object):
         size = N//k         # size of each interval
         mod = N % k         # in case k is not a factor in N
         end = 0
+
         for i in range(k):
             start = end
             end += size + (1 if i < mod else 0)
@@ -78,6 +79,7 @@ class Regression(object):
 
             R2 += self.R2(z[test], z_tilde)
             MSE += self.MSE(z[test], z_tilde)
+
 
         return R2/k, MSE/k
 
