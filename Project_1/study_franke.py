@@ -145,8 +145,7 @@ def plot_MSE_test_train(train_data, test_data, method, p_max=20):
 		# TEST
 		X = method.CreateDesignMatrix(x_test, y_test)
 		MSE_test[i] = method.MSE(z_test, method(X))
-		bias[i] = np.mean((z_test - np.mean(method(X)))**2)
-		variance[i] = np.var(method(X))
+		method.beta = None
 
 
 	figname = path + "MSE_test_train_" + str(method) + ".pdf"
