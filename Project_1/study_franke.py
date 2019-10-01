@@ -14,6 +14,10 @@ fsize = 10				# universal fontsize for plots
 path = "figures/"
 
 def plot_OLS():
+	"""
+	OLS as function of n, mean over 10 runs. Tested against Franke's without noise.
+	"""
+
 	ols = OLS(5)
 	N = np.linspace(50, 150, 101, dtype="int16")
 	m = np.linspace(0, 9, 10, dtype="int16")
@@ -33,13 +37,13 @@ def plot_OLS():
 	plt.plot(N, np.mean(MSE, axis=0))
 	plt.ylabel("MSE", fontsize=fsize)
 	plt.xlabel("n", fontsize=fsize)
-	plt.savefig("OLS(n)_MSE.pdf")
+	plt.savefig(path + "OLS(n)_MSE.pdf")
 	plt.show()
 
 	plt.plot(N, np.mean(R2, axis=0))
 	plt.ylabel("R2", fontsize=fsize)
 	plt.xlabel("n", fontsize=fsize)
-	plt.savefig("OLS(n)_R2.pdf")
+	plt.savefig(path + "OLS(n)_R2.pdf")
 
 	plt.show()
 
@@ -47,6 +51,9 @@ if True:
 	plot_OLS()
 
 def plot_MSE_R2(n, noise):
+	"""
+	Ridge and LASSO as function of lambda. 
+	"""
 	p = 5
 	ridge = RIDGE(p, 0)
 	lasso = LASSO(p, 0)

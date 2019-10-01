@@ -67,7 +67,6 @@ class Regression(object):
         size = N//k         # size of each interval
         mod = N % k         # in case k is not a factor in N
         end = 0
-        ztilde = np.zeros((k, int(len(z)/(k))))
 
         for i in range(k):
             start = end
@@ -76,13 +75,13 @@ class Regression(object):
             train = test == False                                   # rest is train
 
             self.fit(X[train], z[train])
-            ztilde[i] = self(X[test])
+            z_tilde = self(X[test])
 
-            #R2 += self.R2(z[test], z_tilde)
-            #MSE += self.MSE(z[test], z_tilde)
+            R2 += self.R2(z[test], z_tilde)
+            MSE += self.MSE(z[test], z_tilde)
 
 
-        return ztilde#R2/k, MSE/k
+        return R2/k, MSE/k
 
 
     # the RR coefficient of determination.
@@ -111,14 +110,12 @@ class OLS(Regression):
 
     def fit(self, X, z):
         # eigh finds Ax = lx for symmetric/hermitian A
-
-        """E, P = np.linalg.eigh(X.T @ X)
-        D_inv = np.diag(1/E)
-        self.beta = P @ D_inv @ P.T @ X.T @ z"""
-
+        #E, P = np.linalg.eigh(X.T @ X)
+        #D_inv = np.diag(1/E)
         U, s, VT = np.linalg.svd(X, full_matrices=False)
         Dinv = np.diag(1/s)
-        self.beta = VT.T @ Dinv @ U.T @ z
+        self.beta = V.T @ Dinv @ U.T @ z
+        #self.beta = P @ D_inv @ P.T @ X.T @ z
 
     def __str__(self):
         return "OLS"

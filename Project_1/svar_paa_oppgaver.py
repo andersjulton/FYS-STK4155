@@ -39,23 +39,34 @@ Part B
 """
 k = 10
 n = 110
-test, train = get_test_train_data(n, 1/(k + 1), False)
+test, train = get_test_train_data(n, 1/(k + 1), True)
 ztest = test[-1]
 
-p = np.arange(1,9)
+p = np.arange(1,15)
 error = np.zeros(len(p))
 bias = error.copy()
 variance = error.copy()
 
 for i, deg in enumerate(tqdm.tqdm(p)):
     ols = RIDGE(deg, 0.00034)
+    """Xtest = ols.CreateDesignMatrix(test[0], test[1])
+    Xtrain = ols.CreateDesignMatrix(train[0], train[1])
+    ols.fit(Xtrain, train[-1])
+    ztilde = ols(Xtest)
+    error[i] = ols.MSE(ztest, ztilde)
+    bias[i] = np.mean((ztest - np.mean(ztilde)))**2
+    variance[i] = np.var(ztilde)"""
     ztilde = ols.kFoldCV(train[0], train[1], train[2], k)
 
-    error[i] = np.mean( np.mean((ztest - ztilde)**2, axis=1, keepdims=True) )
-    bias[i] = np.mean( (ztest - np.mean(ztilde, axis=1, keepdims=True))**2 )
-    variance[i] = np.mean( np.var(ztilde, axis=1, keepdims=True) )
+    error[i] = np.mean( np.mean((ztest - ztilde)**2, axis=0, keepdims=True) ) - 1
+    bias[i] = np.mean( (ztest - np.mean(ztilde, axis=0, keepdims=True))**2 ) - 1
+    variance[i] = np.mean( np.var(ztilde, axis=0, keepdims=True) )
 
-plt.plot(p, error)
-plt.plot(p, bias)
-plt.plot(p, variance)
+plt.plot(p, error, label="Error")
+plt.plot(p, bias, label="Bias")
+plt.plot(p, variance, label="Variance")
+plt.ylabel("Error")
+plt.xlabel("Polynomial degree")
+plt.legend(fontsize=15)
+
 plt.show()
