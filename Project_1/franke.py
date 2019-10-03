@@ -43,19 +43,23 @@ def get_test_train_data(N, test_size, noise=False):
 	x, y = np.sort(np.random.uniform(0, 1, N)), np.sort(np.random.uniform(0, 1, N))
 	x, y = np.meshgrid(x, y)
 	f = np.ravel(FrankeFunction(x, y))
-	if noise:
-		z = f + get_noise(N*N)
-	else:
-		z = f
-		
-	indices = np.linspace(0, N*N-1, N*N)
-	n = int(N*N*test_size)
+	n = int(len(f)*test_size)
+
+	indices = np.linspace(0, len(f)-1, len(f))
 	np.random.shuffle(indices)
 	test = np.logical_and(indices >= 0, indices < n)
 	train = test == False
 
-	test = (np.ravel(x)[test], np.ravel(y)[test], z[test])
-	train = (np.ravel(x)[train], np.ravel(y)[train], z[train])
+	if noise:
+		z = f + get_noise(len(f))
+		ztest = z[test]
+		ztrain = z[train]
+	else:
+		ztrain = f[train] + get_noise(len(f))[train]
+		ztest = f[test]
+
+	test = (np.ravel(x)[test], np.ravel(y)[test], ztest)
+	train = (np.ravel(x)[train], np.ravel(y)[train], ztrain)
 
 	return test, train
 

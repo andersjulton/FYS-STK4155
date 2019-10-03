@@ -35,15 +35,14 @@ class Regression(object):
         return X
 
 
-    def confIntBeta(self, x, y, z):
-        X = self.CreateDesignMatrix(x, y)
-        self.fit(X, z)
-        ztilde = self(X)
-        E, P = np.linalg.eigh(X.T @ X)
-        D_inv = np.diag(1/E)
-        varbeta = np.sqrt(P @ D_inv @ P.T).diagonal()
-        zSTD = np.sum((z - ztilde)**2)/(len(z) - len(self.beta) - 1)
-        betaSTD = np.sqrt(zSTD)*varbeta
+    def confIntBeta(self, Xtest, Xtrain, ztest, ztrain):
+        self.fit(Xtrain, ztrain)
+        ztilde = self(Xtest)
+        U, s, VT = np.linalg.svd(Xtrain, full_matrices=False)
+        Dinv = np.diag(s**2)
+        varbeta = (VT.T @ Dinv @ VT).diagonal()
+        zSTD = np.sum((ztest - ztilde)**2)/(len(ztest) - len(self.beta) - 1)
+        betaSTD = np.sqrt(zSTD*varbeta)
         percentiles = [99, 98, 95, 90]
         alpha = [2.576, 2.326, 1.96, 1.645]
         '''
@@ -52,7 +51,7 @@ class Regression(object):
             for i, n in enumerate(percentiles):
                 print("%2i%%: %3.2f +- %3.2f" % (percentiles[i], self.beta[k], alpha[i]*betaSTD[k]))
         '''
-        return betaSTD*alpha[1]
+        return betaSTD*alpha[2]
 
 
     # k-fold cross validation
@@ -67,7 +66,6 @@ class Regression(object):
         size = N//k         # size of each interval
         mod = N % k         # in case k is not a factor in N
         end = 0
-        ztilde = np.zeros((k, int(len(z)/(k))))
 
         for i in range(k):
             start = end
@@ -76,13 +74,12 @@ class Regression(object):
             train = test == False                                   # rest is train
 
             self.fit(X[train], z[train])
-            ztilde[i] = self(X[test])
+            ztilde = self(X[test])
 
-            #R2 += self.R2(z[test], z_tilde)
-            #MSE += self.MSE(z[test], z_tilde)
+            R2 += self.R2(z[test], z_tilde)
+            MSE += self.MSE(z[test], z_tilde)
 
-
-        return ztilde#R2/k, MSE/k
+        return R2/k, MSE/k
 
 
     # the RR coefficient of determination.
@@ -110,12 +107,6 @@ class Regression(object):
 class OLS(Regression):
 
     def fit(self, X, z):
-        # eigh finds Ax = lx for symmetric/hermitian A
-
-        """E, P = np.linalg.eigh(X.T @ X)
-        D_inv = np.diag(1/E)
-        self.beta = P @ D_inv @ P.T @ X.T @ z"""
-
         U, s, VT = np.linalg.svd(X, full_matrices=False)
         Dinv = np.diag(1/s)
         self.beta = VT.T @ Dinv @ U.T @ z
@@ -135,6 +126,7 @@ class RIDGE(Regression):
         I = np.identity(len(X[0]))
         self.beta = np.linalg.inv(X.T @ X + self.l*I) @ X.T @ z
 
+
     def __str__(self):
         return "RIDGE"
 
@@ -147,9 +139,8 @@ class LASSO(Regression):
 
 
     def fit(self, X, z):
-        lasso = skl.Lasso(alpha=self.l).fit(X, z)
+        lasso = skl.Lasso(fit_intercept = False, alpha=self.l, precompute=True).fit(X, z)
         self.beta = lasso.coef_
-        self.beta[0] = lasso.intercept_
 
     def __str__(self):
         return "LASSO"
