@@ -13,7 +13,7 @@ Ridge: Seed = 42, n = 81, M(lambdas) = 100
 
 """
 
-np.random.seed(42)
+#np.random.seed(42)
 
 # I AM SO SORRY
 import warnings
@@ -28,35 +28,46 @@ def plot_OLS():
 	"""
 
 	ols = OLS(5)
-	N = np.linspace(50, 150, 101, dtype="int16")
-	m = np.linspace(0, 9, 10, dtype="int16")
-	MSE, R2 = np.zeros((10,101)), np.zeros((10, 101))
+	N = np.linspace(50, 150, 101, dtype="int")
+	m = np.linspace(0, 9, 10, dtype="int")
+	MSEtrain, R2train = np.zeros((10, 101)), np.zeros((10, 101))
+	MSEtest, R2test = np.zeros((10, 101)), np.zeros((10, 101))
 
 	for i in tqdm.tqdm(m):
 		for j, n in enumerate(N):
-			x, y, z = get_train_data(n, noise=False)
-			xn, yn, zn = get_train_data(n, noise=True)
-			Xn = ols.CreateDesignMatrix(xn, yn)
-			X = ols.CreateDesignMatrix(x, y)
-			ols.fit(Xn, zn)
+			test, train = get_test_train_data(n, 0.2, False)
+			xtest, ytest, ztest = test
+			xtrain, ytrain, ztrain = train
 
-			MSE[i][j] = ols.MSE(z, ols(X))
-			R2[i][j] = ols.R2(z, ols(X))
+			Xtrain = ols.CreateDesignMatrix(xtrain, ytrain)
+			Xtest = ols.CreateDesignMatrix(xtest, ytest)
 
-	plt.plot(N, np.mean(MSE, axis=0))
+			ols.fit(Xtrain, ztrain)
+
+			MSEtest[i][j] = ols.MSE(ztest, ols(Xtest))
+			R2test[i][j] = ols.R2(ztest, ols(Xtest))
+
+			MSEtrain[i][j] = ols.MSE(ztrain, ols(Xtrain))
+			R2train[i][j] = ols.R2(ztrain, ols(Xtrain))
+
+	plt.plot(N, np.mean(MSEtest, axis=0), label="Test data")
+	plt.plot(N, np.mean(MSEtrain, axis=0), label="Training data", color='red')
 	plt.ylabel("MSE", fontsize=fsize)
 	plt.xlabel("n", fontsize=fsize)
-	plt.savefig(path + "OLS(n)_MSE.pdf")
+	plt.legend()
+	#plt.savefig(path + "OLS(n)_MSE.pdf")
 	plt.show()
 
-	plt.plot(N, np.mean(R2, axis=0))
+	plt.plot(N, np.mean(R2test, axis=0), label="Test data")
+	#plt.plot(N, np.mean(R2train, axis=0), label="Training data")
 	plt.ylabel("R2", fontsize=fsize)
 	plt.xlabel("n", fontsize=fsize)
-	plt.savefig(path + "OLS(n)_R2.pdf")
+	plt.legend()
 
+	#plt.savefig(path + "OLS(n)_R2.pdf")
 	plt.show()
 
-if False:
+if True:
 	plot_OLS()
 
 def plot_MSE_R2(n, noise):
@@ -229,7 +240,7 @@ def plot_lamb_poly(n, noise):
 		plt.legend()
 		plt.show()
 
-if True:
+if False:
 	n = 81
 	plot_lamb_poly(n, True)
 
@@ -292,8 +303,8 @@ def plot_MSE_test_train(n, method, p_max=20):
 		method.beta = None
 
 	figname = path + "MSE_test_train_" + str(method) + ".pdf"
-	plt.plot(p_list, MSE_train - 1, label="Training Sample", color="red")
-	plt.plot(p_list, MSE_test - 1, label="Test Sample", color="blue")
+	plt.plot(p_list, MSE_train, label="Training Sample", color="red")
+	plt.plot(p_list, MSE_test, label="Test Sample", color="blue")
 	plt.legend(fontsize=fsize)
 	plt.xlabel(r"polynomial degree", fontsize=fsize)
 	plt.ylabel("Error", fontsize=fsize)
@@ -305,8 +316,8 @@ def plot_MSE_test_train(n, method, p_max=20):
 # plotting MSE for training data & test data
 if False:
 	n = 81
-	#plot_MSE_test_train(n, OLS(0), p_max=20)
-	plot_MSE_test_train(n, RIDGE(0, 0.001), p_max=20)
+	plot_MSE_test_train(n, OLS(0), p_max=20)
+	#plot_MSE_test_train(n, RIDGE(0, 0.001), p_max=20)
 	#plot_MSE_test_train(train_data, test_data, LASSO(0, 0.001), p_max=20)
 
 def bias_variance(n, method, p_max=20):
