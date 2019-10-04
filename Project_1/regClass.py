@@ -35,23 +35,16 @@ class Regression(object):
         return X
 
 
-    def confIntBeta(self, Xtest, Xtrain, ztest, ztrain):
+    def confIntBeta(self, Xtest, Xtrain, ztest, ztrain, alpha = 1.96):
         self.fit(Xtrain, ztrain)
         ztilde = self(Xtest)
         U, s, VT = np.linalg.svd(Xtrain, full_matrices=False)
-        Dinv = np.diag(s**2)
-        varbeta = (VT.T @ Dinv @ VT).diagonal()
+        Dinv = np.diag(1/s**2)
+        v = (VT.T @ Dinv @ VT).diagonal()
         zSTD = np.sum((ztest - ztilde)**2)/(len(ztest) - len(self.beta) - 1)
-        betaSTD = np.sqrt(zSTD*varbeta)
-        percentiles = [99, 98, 95, 90]
-        alpha = [2.576, 2.326, 1.96, 1.645]
-        '''
-        for k in range(len(self.beta)):
-            print("Confidence interval for beta %i" % (k + 1))
-            for i, n in enumerate(percentiles):
-                print("%2i%%: %3.2f +- %3.2f" % (percentiles[i], self.beta[k], alpha[i]*betaSTD[k]))
-        '''
-        return betaSTD*alpha[2]
+        confint = alpha*np.sqrt(v*zSTD)
+
+        return confint
 
 
     # k-fold cross validation
@@ -76,8 +69,8 @@ class Regression(object):
             self.fit(X[train], z[train])
             ztilde = self(X[test])
 
-            R2 += self.R2(z[test], z_tilde)
-            MSE += self.MSE(z[test], z_tilde)
+            R2 += self.R2(z[test], ztilde)
+            MSE += self.MSE(z[test], ztilde)
 
         return R2/k, MSE/k
 

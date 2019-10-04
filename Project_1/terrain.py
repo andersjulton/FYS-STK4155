@@ -7,16 +7,26 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
 from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
 from timeit import default_timer as timer
+import tqdm
+
+import warnings
+warnings.filterwarnings('ignore')
+
+np.random.seed(42)
+
 
 fsize = 10
 Compute_K_fold = True
+Compute_lambdas = False
+filename = 'data.tif'
+
 
 def get_data_x_y_z(terrain_data):
     ny, nx = np.shape(terrain_data)
     x, y = np.linspace(0, nx/max(nx, ny), nx), np.linspace(0, ny/max(nx, ny), ny)
     x, y = np.meshgrid(x, y)
     return np.ravel(x), np.ravel(y), np.ravel(terrain_data)
- 
+
 
 def get_data(terrain_data, p):
     x, y, z = get_data_x_y_z(terrain_data)
@@ -24,8 +34,17 @@ def get_data(terrain_data, p):
     return X, z
 
 
+def split_test_train(x, y, z, test_size):
+    N = len(x)
+    n = int(N*test_size)
 
-
+    indices = np.linspace(0, N-1, N)
+    np.random.shuffle(indices)
+    test = np.logical_and(indices >= 0, indices < n)
+    train = test == False
+    test = x[test], y[test], z[test]
+    train = x[train], y[train], z[train]
+    return test, train
 
 def plot(terrain):
     plt.imshow(terrain)
@@ -45,16 +64,68 @@ def plot_reg(method, filename, p):
     plt.savefig("figures/terrain_%d.pdf" %p)
     plt.show()
 
+def find_best_lambda(filename):
+    terrain = imread(filename)
+    terrain = np.delete(terrain, 0, -1)
+    terrain = np.delete(terrain, -1, 0)
+    bsize = 10
+    testTerrain = downscale(terrain, bsize, bsize)
+    x, y, z = get_data_x_y_z(testTerrain)
+    test, train = split_test_train(x, y, z, 0.2)
+    xtest, ytest, ztest = test
+    xtrain, ytrain, ztrain = train
+
+    M = 100
+    lambdas = np.logspace(-7, -2, M)
+
+    polys = np.arange(4, 20, 1, dtype='int')
+    MSER = np.zeros(M)
+    MSEL = MSER.copy()
+    pointsR = np.zeros(len(polys))
+    pointsL = pointsR.copy()
+
+    for i, p in enumerate(tqdm.tqdm(polys)):
+        ridge = RIDGE(p, 0)
+        lasso = LASSO(p, 0)
+
+        Xtrain = ridge.CreateDesignMatrix(xtrain, ytrain)
+        Xtest = ridge.CreateDesignMatrix(xtest, ytest)
+
+        for j in range(M):
+            ridge.l = lambdas[j]
+            lasso.l = lambdas[j]
+
+            ridge.fit(Xtrain, ztrain)
+            MSER[j] = ridge.MSE(ztest, ridge(Xtest))
+
+            lasso.fit(Xtrain, ztrain)
+            MSEL[j] = lasso.MSE(ztest, lasso(Xtest))
+        pointsR[i] = lambdas[np.argmin(MSER)]
+        pointsL[i] = lambdas[np.argmin(MSEL)]
+    data = {'RIDGE': pointsR, 'LASSO': pointsL}
+    np.savez("store_results/terrain_best_lambdas", **data)
 
 def K_fold(method, filename):
     start = timer()
+
     terrain = imread(filename)
-    x, y, z = get_data_x_y_z(terrain)
-    p_list = np.arange(2, 12, 1, dtype=int)
+    terrain = np.delete(terrain, 0, -1)
+    terrain = np.delete(terrain, -1, 0)
+    bsize = 10
+    testTerrain = downscale(terrain, bsize, bsize)
+    x, y, z = get_data_x_y_z(testTerrain)
+    p_list = np.arange(4, 20, 1, dtype=int)
     N = len(p_list)
+    points = np.load("store_results/terrain_best_lambdas.npz")
+    if str(method) == "RIDGE":
+        lambdas = points["RIDGE"]
+    elif str(method) == "LASSO":
+        lambdas = points["LASSO"]
+    else:
+        lambdas = np.zeros(N)
     k_fold = np.zeros((N, 2))
-    for i in range(N):
-        print(p_list[i], end=" ", flush=True)
+    for i in tqdm.tqdm(range(N)):
+        method.l = lambdas[i]
         method.p = p_list[i]
         k_fold[i] = method.kFoldCV(x, y, z, k=10)
     end = timer()
@@ -64,16 +135,26 @@ def K_fold(method, filename):
     np.savez("store_results/terrain_kfold_" + str(method), **data)
 
 
+def downscale(arr, nrows, ncols):
+    """
+    Return an array of shape (n, nrows, ncols) where
+    n * nrows * ncols = arr.size
+
+    If arr is a 2D array, the returned array should look like n subblocks with
+    each subblock preserving the "physical" layout of arr.
+    """
+    h, w = arr.shape
+    assert h % nrows == 0, "{} rows is not evenly divisble by {}".format(h, nrows)
+    assert w % ncols == 0, "{} cols is not evenly divisble by {}".format(w, ncols)
+    newarr = (arr.reshape(h//nrows, nrows, -1, ncols)
+               .swapaxes(1,2)
+               .reshape(-1, nrows, ncols))
+    newarr = np.mean(newarr, axis=(1,2))
+    return newarr.reshape(int(h/nrows), int(w/ncols))
 
 
-
-
-filename = 'data.tif'
-terrain = imread(filename)
-#plot(terrain)
-#print(np.shape(terrain))
-#print(np.shape(np.ravel(terrain)))
-
+if Compute_lambdas:
+    find_best_lambda(filename)
 
 if Compute_K_fold:
     ols = OLS(0)
@@ -83,40 +164,32 @@ if Compute_K_fold:
     K_fold(ridge, filename)
     K_fold(lasso, filename)
 
+if True:
+    path = "store_results/terrain_kfold_"
+    ols = np.load(path+ "OLS.npz")
+    ridge = np.load(path + "RIDGE.npz")
+    lasso = np.load(path + "LASSO.npz")
 
-path = "store_results/terrain_kfold_"
-ols = np.load(path+ "OLS.npz")
-ridge = np.load(path + "RIDGE.npz")
-lasso = np.load(path + "LASSO.npz")
+    path = "figures/terrain_kfold_"
+    p_list = np.arange(4, 20, 1, dtype=int)
+    plt.plot(p_list, ols["MSE"], label="OLS")
+    plt.plot(p_list, ridge["MSE"], label="RIDGE")
+    plt.plot(p_list, lasso["MSE"], label="LASSO")
+    plt.legend(fontsize=fsize)
+    plt.xticks(p_list, p_list)
+    plt.xlabel("polynomial degree", fontsize=fsize)
+    plt.ylabel("MSE", fontsize=fsize)
+    plt.tight_layout()
+    #plt.savefig(path + "MSE.pdf")
+    plt.show()
 
-path = "figures/terrain_kfold_" 
-p_list = np.arange(2, 12, 1, dtype=int)
-plt.plot(p_list, ols["MSE"], label="OLS")
-plt.plot(p_list, ridge["MSE"], label="RIDGE")
-plt.plot(p_list, lasso["MSE"], label="LASSO")
-plt.legend(fontsize=fsize)
-plt.xticks(p_list, p_list)
-plt.xlabel("polynomial degree", fontsize=fsize)
-plt.ylabel("MSE", fontsize=fsize)
-plt.tight_layout()
-plt.savefig(path + "MSE.pdf")
-plt.show()
-
-plt.plot(p_list, ols["R2"], label="OLS")
-plt.plot(p_list, ridge["R2"], label="RIDGE")
-plt.plot(p_list, lasso["R2"], label="LASSO")
-plt.legend(fontsize=fsize)
-plt.xticks(p_list, p_list)
-plt.xlabel("polynomial degree", fontsize=fsize)
-plt.ylabel(r"$R^2$", fontsize=fsize)
-plt.tight_layout()
-plt.savefig(path + "R2.pdf")
-plt.show()
-
-
-
-
-
-
-
-
+    plt.plot(p_list, ols["R2"], label="OLS")
+    plt.plot(p_list, ridge["R2"], label="RIDGE")
+    plt.plot(p_list, lasso["R2"], label="LASSO")
+    plt.legend(fontsize=fsize)
+    plt.xticks(p_list, p_list)
+    plt.xlabel("polynomial degree", fontsize=fsize)
+    plt.ylabel(r"$R^2$", fontsize=fsize)
+    plt.tight_layout()
+    #plt.savefig(path + "R2.pdf")
+    plt.show()

@@ -64,7 +64,7 @@ def plot_OLS():
 	#plt.savefig(path + "OLS(n)_R2.pdf")
 	plt.show()
 
-if True:
+if False:
 	plot_OLS()
 
 def plot_MSE_R2(n, noise):
@@ -242,14 +242,15 @@ if False:
 	plot_lamb_poly(n, True)
 
 
-def plot_conf_beta(method, n):
+def plot_conf_beta(method, n, alpha):
 	xn, yn, zn = get_train_data(n, noise=True)
 	x, y, z = get_train_data(n, noise=False)
-	X = method.CreateDesignMatrix(xn, yn)
+	Xn = method.CreateDesignMatrix(xn, yn)
+	X = method.CreateDesignMatrix(x, y)
 
-	betaSTD_f = method.confIntBeta(X, X, z, z)
+	betaSTD_f = method.confIntBeta(X, X, z, z, alpha)
 	beta_f = method.beta
-	betaSTD_z = method.confIntBeta(X, X, zn, zn)
+	betaSTD_z = method.confIntBeta(Xn, Xn, zn, zn, alpha)
 	beta_z = method.beta
 	N = len(beta_z)
 	colors = ["mediumblue","crimson"]
@@ -273,11 +274,19 @@ def plot_conf_beta(method, n):
 	plt.show()
 
 
-if False:
+if True:
+	"""
+	Alphas for percentiles:
+	99%: alpha = 2.576
+	98%: alpha = 2.326
+	95%: alpha = 1.96
+	90%: alpha = 1.645
+	"""
 	n = 81
-	plot_conf_beta(OLS(5), n)
-	plot_conf_beta(RIDGE(5, 0.0001), n)
-	plot_conf_beta(LASSO(5, 0.00003), n)
+	alpha = 1.96
+	plot_conf_beta(OLS(5), n, alpha)
+	plot_conf_beta(RIDGE(5, 0.0001), n, alpha)
+	plot_conf_beta(LASSO(5, 0.00003), n, alpha)
 
 
 def plot_MSE_test_train(n, method, p_max=20):
