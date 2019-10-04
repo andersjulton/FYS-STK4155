@@ -26,40 +26,37 @@ def plot_OLS():
 	"""
 	OLS as function of n, mean over 10 runs. Tested against Franke's without noise.
 	"""
-
+	K = 10
 	ols = OLS(5)
-	N = np.linspace(50, 150, 101, dtype="int")
-	m = np.linspace(0, 9, 10, dtype="int")
-	MSEtrain, R2train = np.zeros((10, 101)), np.zeros((10, 101))
-	MSEtest, R2test = np.zeros((10, 101)), np.zeros((10, 101))
+	N = np.arange(15, 150, 5, dtype="int")
+	M = len(N)
+	MSE, R2 = np.zeros(M), np.zeros(M)
+	MSE_, R2_ = np.zeros(M), np.zeros(M)
 
-	for i in tqdm.tqdm(m):
-		for j, n in enumerate(N):
-			test, train = get_test_train_data(n, 0.2, False)
-			xtest, ytest, ztest = test
-			xtrain, ytrain, ztrain = train
+	for i in tqdm.tqdm(range(M)):
+		n = N[i]
+		for j in range(K):
+			x, y, z = get_train_data(n, noise=True)
+			xn, yn, zn = get_train_data(n, noise=True)
+			Xn = ols.CreateDesignMatrix(xn, yn)
+			X = ols.CreateDesignMatrix(x, y)
+			ols.fit(Xn, zn)
 
-			Xtrain = ols.CreateDesignMatrix(xtrain, ytrain)
-			Xtest = ols.CreateDesignMatrix(xtest, ytest)
+			MSE[i] += ols.MSE(z, ols(X))
+			R2[i] += ols.R2(z, ols(X))
+			MSE_[i] += ols.MSE(zn, ols(Xn))
+			R2_[i] += ols.R2(zn, ols(Xn))
 
-			ols.fit(Xtrain, ztrain)
-
-			MSEtest[i][j] = ols.MSE(ztest, ols(Xtest))
-			R2test[i][j] = ols.R2(ztest, ols(Xtest))
-
-			MSEtrain[i][j] = ols.MSE(ztrain, ols(Xtrain))
-			R2train[i][j] = ols.R2(ztrain, ols(Xtrain))
-
-	plt.plot(N, np.mean(MSEtest, axis=0), label="Test data")
-	plt.plot(N, np.mean(MSEtrain, axis=0), label="Training data", color='red')
+	plt.plot(N, MSE/K)
+	plt.plot(N, MSE_/K)
 	plt.ylabel("MSE", fontsize=fsize)
 	plt.xlabel("n", fontsize=fsize)
 	plt.legend()
 	#plt.savefig(path + "OLS(n)_MSE.pdf")
 	plt.show()
 
-	plt.plot(N, np.mean(R2test, axis=0), label="Test data")
-	#plt.plot(N, np.mean(R2train, axis=0), label="Training data")
+	plt.plot(N, R2/K)
+	plt.plot(N, R2_/K)
 	plt.ylabel("R2", fontsize=fsize)
 	plt.xlabel("n", fontsize=fsize)
 	plt.legend()
