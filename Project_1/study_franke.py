@@ -149,12 +149,14 @@ if False:
 	plot_MSE_R2(n, True)
 
 
-def plot_lamb_poly(n, noise):
+def plot_lamb_poly():
 	np.random.seed(42)
+	noise = True
+	n = 100
 	M = 100
-	lambdas = np.logspace(-7, -2, M)
+	lambdas = np.logspace(-7, -1, M)
 
-	polys = np.arange(4, 16)
+	polys = np.arange(4, 30)
 	N = len(polys)
 
 	MSE_ols = np.zeros(N)
@@ -168,7 +170,7 @@ def plot_lamb_poly(n, noise):
 	R2_lasso = np.zeros(N)
 	lambda_lasso = np.zeros(N) + lambdas[0]
 
-	test, train = get_test_train_data(n, test_size=0.20, noise=noise)
+	test, train = get_test_train_data(n, test_size=0.30, noise=noise)
 	xtrain, ytrain, ztrain = train
 	xtest, ytest, ztest = test
 	
@@ -204,7 +206,7 @@ def plot_lamb_poly(n, noise):
 			ridge.fit(Xtrain, ztrain)
 			z_ridge = ridge(Xtest)
 			MSE = ridge.MSE(ztest, z_ridge)
-			if MSE < MSE_ridge[i]:
+			if MSE <= MSE_ridge[i]:
 				MSE_ridge[i] = MSE
 				R2_ridge[i] = ridge.R2(ztest, z_ridge)
 				lambda_ridge[i] = lambdas[j]
@@ -212,11 +214,12 @@ def plot_lamb_poly(n, noise):
 			lasso.l = lambdas[j]
 			lasso.fit(Xtrain, ztrain)
 			z_lasso = lasso(Xtest)
-			MSE = ridge.MSE(ztest, z_lasso)
-			if MSE < MSE_lasso[i]:
+			MSE = lasso.MSE(ztest, z_lasso)
+			if MSE <= MSE_lasso[i]:
 				MSE_lasso[i] = MSE
 				R2_lasso[i] = ridge.R2(ztest, z_lasso)
 				lambda_lasso[i] = lambdas[j]
+
 
 
 
@@ -224,13 +227,12 @@ def plot_lamb_poly(n, noise):
 	def y_ticks(l):
 		l =  np.log10(l)
 		l_min = int(min(l))
-		l_max = int(max(l))
+		l_max = int(max(l)) + 1
 		return range(l_min, l_max), [r"$10^{%d}$" %i for i in range(l_min, l_max)]
 
 
 	plt.plot(polys, np.log10(lambda_ridge), '--')
 	plt.scatter(polys, np.log10(lambda_ridge))
-	#plt.ylim([0, 1.1*np.max(lambda_ridge)])
 	plt.yticks(*y_ticks(lambda_ridge))
 	plt.xlabel("Polynomial degree", fontsize=fsize)
 	plt.ylabel(r"$\lambda$", fontsize=fsize)
@@ -241,7 +243,6 @@ def plot_lamb_poly(n, noise):
 	plt.plot(polys, np.log10(lambda_lasso), '--')
 	plt.scatter(polys, np.log10(lambda_lasso))
 	plt.yticks(*y_ticks(lambda_lasso))
-	#plt.ylim([0, 1.1*np.max(lambda_lasso)])
 	plt.xlabel("Polynomial degree", fontsize=fsize)
 	plt.ylabel(r"$\lambda$", fontsize=fsize)
 	plt.tight_layout()
@@ -255,6 +256,7 @@ def plot_lamb_poly(n, noise):
 	plt.plot(polys, MSE_lasso, label="LASSO")
 	plt.xlabel("Polynomial degree", fontsize=fsize)
 	plt.ylabel("MSE", fontsize=fsize)
+	plt.ylim(1, 1.1)
 	plt.legend(fontsize=fsize)
 	plt.tight_layout()
 	plt.savefig(path + "MSE_with_best_lambdas.pdf")
@@ -268,14 +270,14 @@ def plot_lamb_poly(n, noise):
 	plt.xlabel("Polynomial degree", fontsize=fsize)
 	plt.ylabel(r"$R^2$", fontsize=fsize)
 	plt.legend(fontsize=fsize)
+	plt.ylim(0.06, 0.09)
 	plt.tight_layout()
 	plt.savefig(path + "R2_with_best_lambda.pdf")
 	plt.show()
 
 
 if compute_best_lambdas:
-	n = 81
-	plot_lamb_poly(n, True)
+	plot_lamb_poly()
 
 
 def plot_conf_beta(method, n):
