@@ -13,57 +13,68 @@ Ridge: Seed = 42, n = 81, M(lambdas) = 100
 
 """
 
-np.random.seed(42)
+compute_OLS_n = False
+compute_conf_beta = False
+compute_best_lambdas = True
 
-# I AM SO SORRY
-import warnings
-warnings.filterwarnings('ignore')
-
-fsize = 10				# universal fontsize for plots
+fsize = 13				# universal fontsize for plots
 path = "figures/"
 
 def plot_OLS():
 	"""
-	OLS as function of n, mean over 10 runs. Tested against Franke's without noise.
+	OLS as function of n, mean over 10 runs.
+	Comparing score with test and train data.
 	"""
 	K = 10
 	ols = OLS(5)
-	N = np.arange(15, 150, 5, dtype="int")
+	N = np.arange(10, 100, 1, dtype="int")
 	M = len(N)
-	MSE, R2 = np.zeros(M), np.zeros(M)
-	MSE_, R2_ = np.zeros(M), np.zeros(M)
+	MSE_train, R2_train = np.zeros(M), np.zeros(M)
+	MSE_test, R2_test = np.zeros(M), np.zeros(M)
 
 	for i in tqdm.tqdm(range(M)):
 		n = N[i]
 		for j in range(K):
+			# TRAIN DATA
 			x, y, z = get_train_data(n, noise=True)
-			xn, yn, zn = get_train_data(n, noise=True)
-			Xn = ols.CreateDesignMatrix(xn, yn)
 			X = ols.CreateDesignMatrix(x, y)
-			ols.fit(Xn, zn)
+			ols.fit(X, z)
 
-			MSE[i] += ols.MSE(z, ols(X))
-			R2[i] += ols.R2(z, ols(X))
-			MSE_[i] += ols.MSE(zn, ols(Xn))
-			R2_[i] += ols.R2(zn, ols(Xn))
+			z_tilde = ols(X)
+			MSE_train[i] += ols.MSE(z, z_tilde)
+			R2_train[i] += ols.R2(z, z_tilde)
 
-	plt.plot(N, MSE/K)
-	plt.plot(N, MSE_/K)
+			# TEST DATA
+			x, y, z = get_train_data(n, noise=True)
+			X = ols.CreateDesignMatrix(x, y)
+
+			z_tilde = ols(X)
+			MSE_test[i] += ols.MSE(z, z_tilde)
+			R2_test[i] += ols.R2(z, z_tilde)
+
+	plt.plot(N, MSE_train/K, label="Train data")
+	plt.plot(N, MSE_test/K, label="Test data")
 	plt.ylabel("MSE", fontsize=fsize)
-	plt.xlabel("n", fontsize=fsize)
+	plt.xlabel(r"n ($n^2$ number of data points)", fontsize=fsize)
+	plt.legend(fontsize=fsize)
+	plt.ylim(0.8, 1.2)
+	plt.tight_layout()
 	plt.savefig(path + "OLS(n)_MSE.pdf")
 	plt.show()
 
-	plt.plot(N, R2/K)
-	plt.plot(N, R2_/K)
-	plt.ylabel("R2", fontsize=fsize)
-	plt.xlabel("n", fontsize=fsize)
+	plt.plot(N, R2_train/K, label="Train data")
+	plt.plot(N, R2_test/K, label="Test data")
+	plt.ylabel(r"$R^2$", fontsize=fsize)
+	plt.xlabel(r"n ($n^2$ number of data points)", fontsize=fsize)
+	plt.legend(fontsize=fsize)
+	plt.ylim(0, 0.25)
+	plt.tight_layout()
 	plt.savefig(path + "OLS(n)_R2.pdf")
-
 	plt.show()
 
-if True:
+if compute_OLS_n:
 	plot_OLS()
+
 
 def plot_MSE_R2(n, noise):
 	"""
@@ -120,7 +131,7 @@ def plot_MSE_R2(n, noise):
 		plt.xlabel(r"$log_{10}(\lambda)$", fontsize=fsize)
 		plt.ylabel("MSE", fontsize=fsize)
 		plt.tight_layout()
-		#plt.savefig(path + "MSE_methods_" + labels[i] + "_" + end)
+		plt.savefig(path + "MSE_methods_" + labels[i] + "_" + end)
 		plt.show()
 
 		plt.semilogx(lambdas[i], R2[i], label=labels[i])
@@ -130,7 +141,7 @@ def plot_MSE_R2(n, noise):
 		plt.xlabel(r"$log_{10}(\lambda)$", fontsize=fsize)
 		plt.ylabel("$R^2$", fontsize=fsize)
 		plt.tight_layout()
-		#plt.savefig(path + "R2_methods_" + labels[i] + "_" + end)
+		plt.savefig(path + "R2_methods_" + labels[i] + "_" + end)
 		plt.show()
 
 if False:
@@ -139,103 +150,130 @@ if False:
 
 
 def plot_lamb_poly(n, noise):
+	np.random.seed(42)
 	M = 100
 	lambdas = np.logspace(-7, -2, M)
 
 	polys = np.arange(4, 16)
-	MSER = np.zeros((M, len(polys)))
-	R2R = MSER.copy()
-	MSEL = MSER.copy()
-	R2L = MSER.copy()
+	N = len(polys)
+
+	MSE_ols = np.zeros(N)
+	R2_ols = np.zeros(N)
+
+	MSE_ridge = np.zeros(N)
+	R2_ridge = np.zeros(N)
+	lambda_ridge = np.zeros(N) + lambdas[0]
+
+	MSE_lasso = np.zeros(N)
+	R2_lasso = np.zeros(N)
+	lambda_lasso = np.zeros(N) + lambdas[0]
+
 	test, train = get_test_train_data(n, test_size=0.20, noise=noise)
 	xtrain, ytrain, ztrain = train
 	xtest, ytest, ztest = test
+	
+	#xtrain, ytrain, ztrain = get_train_data(n, noise=noise)
+	#xtest, ytest, ztest = get_train_data(n, noise=noise)
+
 
 	for i, p in enumerate(tqdm.tqdm(polys)):
-		ridge = RIDGE(p, 0)
-		lasso = LASSO(p, 0)
+		ridge = RIDGE(p, lambdas[0])
+		lasso = LASSO(p, lambdas[0])
+		ols = OLS(p)
 
 		Xtrain = ridge.CreateDesignMatrix(xtrain, ytrain)
 		Xtest = ridge.CreateDesignMatrix(xtest, ytest)
 
-		for j in range(M):
+		ridge.fit(Xtrain, ztrain)
+		z_ridge = ridge(Xtest)
+		MSE_ridge[i] = ridge.MSE(ztest, z_ridge)
+		R2_ridge[i] = ridge.R2(ztest, z_ridge)
+
+		lasso.fit(Xtrain, ztrain)
+		z_lasso = lasso(Xtest)
+		MSE_lasso[i] = lasso.MSE(ztest, z_lasso)
+		R2_lasso[i] = lasso.R2(ztest, z_lasso)
+
+		ols.fit(Xtrain, ztrain)
+		z_ols = ols(Xtest)
+		MSE_ols[i] = lasso.MSE(ztest, z_ols)
+		R2_ols[i] = lasso.R2(ztest, z_ols)
+
+		for j in range(1, M):
 			ridge.l = lambdas[j]
-			lasso.l = lambdas[j]
-
 			ridge.fit(Xtrain, ztrain)
-			MSER[j][i] = ridge.MSE(ztest, ridge(Xtest))
-			R2R[j][i] = ridge.R2(ztest, ridge(Xtest))
+			z_ridge = ridge(Xtest)
+			MSE = ridge.MSE(ztest, z_ridge)
+			if MSE < MSE_ridge[i]:
+				MSE_ridge[i] = MSE
+				R2_ridge[i] = ridge.R2(ztest, z_ridge)
+				lambda_ridge[i] = lambdas[j]
 
+			lasso.l = lambdas[j]
 			lasso.fit(Xtrain, ztrain)
-			MSEL[j][i] = lasso.MSE(ztest, lasso(Xtest))
-			R2L[j][i] = lasso.R2(ztest, lasso(Xtest))
+			z_lasso = lasso(Xtest)
+			MSE = ridge.MSE(ztest, z_lasso)
+			if MSE < MSE_lasso[i]:
+				MSE_lasso[i] = MSE
+				R2_lasso[i] = ridge.R2(ztest, z_lasso)
+				lambda_lasso[i] = lambdas[j]
 
-	pointsR = np.argmin(MSER, axis=0)
-	plt.scatter(polys, lambdas[pointsR])
-	plt.ylim([0, np.max(lambdas[pointsR]) + 0.1*np.max(lambdas[pointsR])])
-	plt.title("Best lambda(p) for Ridge")
-	plt.xlabel("Polynomial degree")
-	plt.ylabel(r"$\lambda$")
+
+
+	# plot best lambdas
+	def y_ticks(l):
+		l =  np.log10(l)
+		l_min = int(min(l))
+		l_max = int(max(l))
+		return range(l_min, l_max), [r"$10^{%d}$" %i for i in range(l_min, l_max)]
+
+
+	plt.plot(polys, np.log10(lambda_ridge), '--')
+	plt.scatter(polys, np.log10(lambda_ridge))
+	#plt.ylim([0, 1.1*np.max(lambda_ridge)])
+	plt.yticks(*y_ticks(lambda_ridge))
+	plt.xlabel("Polynomial degree", fontsize=fsize)
+	plt.ylabel(r"$\lambda$", fontsize=fsize)
+	plt.tight_layout()
 	plt.savefig(path + "best_lambda_RIDGE.pdf")
 	plt.show()
 
-	pointsL = np.argmin(MSEL, axis=0)
-	plt.scatter(polys, lambdas[pointsL])
-	plt.ylim([0, np.max(lambdas[pointsL]) + 0.1*np.max(lambdas[pointsL])])
-	plt.title("Best lambda(p) for LASSO")
-	plt.xlabel("Polynomial degree")
-	plt.ylabel(r"$\lambda$")
+	plt.plot(polys, np.log10(lambda_lasso), '--')
+	plt.scatter(polys, np.log10(lambda_lasso))
+	plt.yticks(*y_ticks(lambda_lasso))
+	#plt.ylim([0, 1.1*np.max(lambda_lasso)])
+	plt.xlabel("Polynomial degree", fontsize=fsize)
+	plt.ylabel(r"$\lambda$", fontsize=fsize)
+	plt.tight_layout()
 	plt.savefig(path + "best_lambda_LASSO.pdf")
 	plt.show()
 
-	MSE = np.zeros((3, len(polys)))
-	R2 = np.zeros((3, len(polys)))
-	MSEtrain = np.zeros((3, len(polys)))
-	test, train = get_test_train_data(n, test_size=0.20, noise=True)
-	xtrain, ytrain, ztrain = train
-	xtest, ytest, ztest = test
 
-	for i, p in enumerate(polys):
-		ridge = RIDGE(p, lambdas[pointsR[i]])
-		lasso = LASSO(p, lambdas[pointsL[i]])
-		ols = OLS(p)
-		methods = [ols, ridge, lasso]
-
-		Xtrain = ridge.CreateDesignMatrix(xtrain, ytrain)
-		Xtest = ridge.CreateDesignMatrix(xtest, ytest)
-
-		for j, method in enumerate(methods):
-			method.fit(Xtrain, ztrain)
-			MSE[j][i] = method.MSE(ztest, method(Xtest))
-			MSEtrain[j][i] = method.MSE(ztrain, method(Xtrain))
-			R2[j][i] = method.R2(ztest, method(Xtest))
-
-	labels = ["OLS", "Ridge", "LASSO"]
-	for i in range(3):
-		plt.plot(polys, MSE[i], label= labels[i])
-
-	plt.xlabel("Polynomial degree")
-	plt.ylabel("MSE")
-	plt.legend()
+	# plot MSE for best lambdas
+	plt.plot(polys, MSE_ols, label="OLS")
+	plt.plot(polys, MSE_ridge, label="Ridge")
+	plt.plot(polys, MSE_lasso, label="LASSO")
+	plt.xlabel("Polynomial degree", fontsize=fsize)
+	plt.ylabel("MSE", fontsize=fsize)
+	plt.legend(fontsize=fsize)
+	plt.tight_layout()
 	plt.savefig(path + "MSE_with_best_lambdas.pdf")
 	plt.show()
-	for i in range(3):
-		plt.plot(polys, R2[i], label=labels[i])
+
+
+	# plot R2 for best lambdas
+	plt.plot(polys, R2_ols, label="OLS")
+	plt.plot(polys, R2_ridge, label="Ridge")
+	plt.plot(polys, R2_lasso, label="LASSO")
 	plt.xlabel("Polynomial degree", fontsize=fsize)
-	plt.ylabel("R2")
-	plt.legend()
+	plt.ylabel(r"$R^2$", fontsize=fsize)
+	plt.legend(fontsize=fsize)
+	plt.tight_layout()
 	plt.savefig(path + "R2_with_best_lambda.pdf")
 	plt.show()
 
-	for i in range(3):
-		plt.plot(polys, MSE[i], label= labels[i] + " test")
-		plt.plot(polys, MSEtrain[i], label= labels[i] + " training")
-		plt.xlabel("Polynomial degree")
-		plt.ylabel("MSE")
-		plt.legend()
-		plt.show()
 
-if False:
+if compute_best_lambdas:
 	n = 81
 	plot_lamb_poly(n, True)
 
@@ -271,7 +309,7 @@ def plot_conf_beta(method, n):
 	plt.show()
 
 
-if False:
+if compute_conf_beta:
 	n = 81
 	plot_conf_beta(OLS(5), n)
 	plot_conf_beta(RIDGE(5, 0.0001), n)
@@ -311,9 +349,9 @@ def plot_MSE_test_train(n, method, p_max=20):
 # plotting MSE for training data & test data
 if False:
 	n = 81
-	#plot_MSE_test_train(n, OLS(0), p_max=20)
+	plot_MSE_test_train(n, OLS(0), p_max=20)
 	plot_MSE_test_train(n, RIDGE(0, 0.001), p_max=20)
-	#plot_MSE_test_train(train_data, test_data, LASSO(0, 0.001), p_max=20)
+	plot_MSE_test_train(train_data, test_data, LASSO(0, 0.001), p_max=20)
 
 def bias_variance(n, method, p_max=20):
 	test, train = get_test_train_data(n, 0.2, noise=True)
