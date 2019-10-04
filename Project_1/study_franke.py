@@ -26,37 +26,43 @@ def plot_OLS():
 	"""
 	OLS as function of n, mean over 10 runs. Tested against Franke's without noise.
 	"""
-
+	K = 10
 	ols = OLS(5)
-	N = np.linspace(50, 150, 101, dtype="int16")
-	m = np.linspace(0, 9, 10, dtype="int16")
-	MSE, R2 = np.zeros((10,101)), np.zeros((10, 101))
+	N = np.arange(15, 150, 5, dtype="int")
+	M = len(N)
+	MSE, R2 = np.zeros(M), np.zeros(M)
+	MSE_, R2_ = np.zeros(M), np.zeros(M)
 
-	for i in tqdm.tqdm(m):
-		for j, n in enumerate(N):
-			x, y, z = get_train_data(n, noise=False)
+	for i in tqdm.tqdm(range(M)):
+		n = N[i]
+		for j in range(K):
+			x, y, z = get_train_data(n, noise=True)
 			xn, yn, zn = get_train_data(n, noise=True)
 			Xn = ols.CreateDesignMatrix(xn, yn)
 			X = ols.CreateDesignMatrix(x, y)
 			ols.fit(Xn, zn)
 
-			MSE[i][j] = ols.MSE(z, ols(X))
-			R2[i][j] = ols.R2(z, ols(X))
+			MSE[i] += ols.MSE(z, ols(X))
+			R2[i] += ols.R2(z, ols(X))
+			MSE_[i] += ols.MSE(zn, ols(Xn))
+			R2_[i] += ols.R2(zn, ols(Xn))
 
-	plt.plot(N, np.mean(MSE, axis=0))
+	plt.plot(N, MSE/K)
+	plt.plot(N, MSE_/K)
 	plt.ylabel("MSE", fontsize=fsize)
 	plt.xlabel("n", fontsize=fsize)
 	plt.savefig(path + "OLS(n)_MSE.pdf")
 	plt.show()
 
-	plt.plot(N, np.mean(R2, axis=0))
+	plt.plot(N, R2/K)
+	plt.plot(N, R2_/K)
 	plt.ylabel("R2", fontsize=fsize)
 	plt.xlabel("n", fontsize=fsize)
 	plt.savefig(path + "OLS(n)_R2.pdf")
 
 	plt.show()
 
-if False:
+if True:
 	plot_OLS()
 
 def plot_MSE_R2(n, noise):
@@ -229,7 +235,7 @@ def plot_lamb_poly(n, noise):
 		plt.legend()
 		plt.show()
 
-if True:
+if False:
 	n = 81
 	plot_lamb_poly(n, True)
 
