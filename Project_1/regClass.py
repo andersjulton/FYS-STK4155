@@ -69,12 +69,13 @@ class Regression(object):
 
             self.fit(X[train], z[train])
             ztilde = self(X[test])
-
-            R2 += self.R2(z[test], ztilde)
-            MSE += self.MSE(z[test], ztilde)
+            
             MSEout[i] = self.MSE(z[test], ztilde)
 
-        return R2/k, MSE/k
+            R2 += self.R2(z[test], ztilde)
+            MSE += MSEout[i]
+
+        return R2/k, MSE/k, MSEout
 
 
     # the RR coefficient of determination.
