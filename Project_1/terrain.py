@@ -48,12 +48,25 @@ def split_test_train(x, y, z, test_size):
 
 def plot(terrain):
     plt.imshow(terrain)
-    plt.savefig("figures/terrain.pdf")
+    plt.tick_params(
+    axis='both',          # changes apply to the x-axis
+    which='both',      # both major and minor ticks are affected
+    bottom=False,      # ticks along the bottom edge are off
+    left=False,
+    labelleft=False,
+    top=False,         # ticks along the top edge are off
+    labelbottom=False) # labels along the bottom edge are off
+    plt.tight_layout()
+    plt.savefig("figures/terrain_reduced.pdf")
     plt.show()
 
 
 def plot_reg(method, filename, p):
     terrain = imread(filename)
+    terrain = np.delete(terrain, 0, -1)
+    terrain = np.delete(terrain, -1, 0)
+    bsize = 10
+    terrain = downscale(terrain, bsize, bsize)
     nx, ny = np.shape(terrain)
     X, z = get_data(terrain, p)
     method.p = p
@@ -61,6 +74,15 @@ def plot_reg(method, filename, p):
     new_terrain = method(X)
     new_terrain = new_terrain.reshape(nx, ny)
     plt.imshow(new_terrain)
+    plt.tick_params(
+    axis='both',          # changes apply to the x-axis
+    which='both',      # both major and minor ticks are affected
+    bottom=False,      # ticks along the bottom edge are off
+    left=False,
+    labelleft=False,
+    top=False,         # ticks along the top edge are off
+    labelbottom=False) # labels along the bottom edge are off
+    plt.tight_layout()
     plt.savefig("figures/terrain_%d.pdf" %p)
     plt.show()
 
@@ -78,7 +100,7 @@ def find_best_lambda(filename):
     M = 100
     lambdas = np.logspace(-7, -2, M)
 
-    polys = np.arange(4, 20, 1, dtype='int')
+    polys = np.arange(4, 23, 1, dtype='int')
     MSER = np.zeros(M)
     MSEL = MSER.copy()
     pointsR = np.zeros(len(polys))
@@ -114,7 +136,7 @@ def K_fold(method, filename):
     bsize = 10
     testTerrain = downscale(terrain, bsize, bsize)
     x, y, z = get_data_x_y_z(testTerrain)
-    p_list = np.arange(4, 20, 1, dtype=int)
+    p_list = np.arange(4, 23, 1, dtype=int)
     N = len(p_list)
     points = np.load("store_results/terrain_best_lambdas.npz")
     if str(method) == "RIDGE":
@@ -152,6 +174,7 @@ def downscale(arr, nrows, ncols):
     newarr = np.mean(newarr, axis=(1,2))
     return newarr.reshape(int(h/nrows), int(w/ncols))
 
+plot_reg(OLS(0), filename, 19)
 
 if Compute_lambdas:
     find_best_lambda(filename)
@@ -164,14 +187,14 @@ if Compute_K_fold:
     K_fold(ridge, filename)
     K_fold(lasso, filename)
 
-if True:
+if False:
     path = "store_results/terrain_kfold_"
     ols = np.load(path+ "OLS.npz")
     ridge = np.load(path + "RIDGE.npz")
     lasso = np.load(path + "LASSO.npz")
 
     path = "figures/terrain_kfold_"
-    p_list = np.arange(4, 20, 1, dtype=int)
+    p_list = np.arange(4, 23, 1, dtype=int)
     plt.plot(p_list, ols["MSE"], label="OLS")
     plt.plot(p_list, ridge["MSE"], label="RIDGE")
     plt.plot(p_list, lasso["MSE"], label="LASSO")
@@ -186,6 +209,8 @@ if True:
     plt.plot(p_list, ols["R2"], label="OLS")
     plt.plot(p_list, ridge["R2"], label="RIDGE")
     plt.plot(p_list, lasso["R2"], label="LASSO")
+    point = np.argmax(ols["R2"])
+    plt.scatter(p_list[point], ols["R2"][point], color='r', label="p = {}".format(p_list[point]))
     plt.legend(fontsize=fsize)
     plt.xticks(p_list, p_list)
     plt.xlabel("polynomial degree", fontsize=fsize)

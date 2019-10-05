@@ -74,7 +74,7 @@ class Regression(object):
             MSE += self.MSE(z[test], ztilde)
             MSEout[i] = self.MSE(z[test], ztilde)
 
-        return MSEout, R2/k, MSE/k
+        return R2/k, MSE/k
 
 
     # the RR coefficient of determination.
