@@ -59,6 +59,7 @@ class Regression(object):
         size = N//k         # size of each interval
         mod = N % k         # in case k is not a factor in N
         end = 0
+        MSEout = np.zeros(k)
 
         for i in range(k):
             start = end
@@ -71,8 +72,9 @@ class Regression(object):
 
             R2 += self.R2(z[test], ztilde)
             MSE += self.MSE(z[test], ztilde)
+            MSEout[i] = self.MSE(z[test], ztilde)
 
-        return R2/k, MSE/k
+        return MSEout, R2/k, MSE/k
 
 
     # the RR coefficient of determination.
@@ -132,8 +134,10 @@ class LASSO(Regression):
 
 
     def fit(self, X, z):
-        lasso = skl.Lasso(fit_intercept = False, alpha=self.l, precompute=True).fit(X, z)
-        self.beta = lasso.coef_
+        lasso = skl.Lasso(alpha=self.l, precompute=True).fit(X[:,1:], z)
+        self.beta = np.zeros(len(X[0]))
+        self.beta[1:] = lasso.coef_
+        self.beta[0] = lasso.intercept_
 
     def __str__(self):
         return "LASSO"

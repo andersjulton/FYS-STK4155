@@ -7,6 +7,9 @@ import numpy as np
 import tqdm
 from sklearn.preprocessing import normalize
 
+import warnings
+warnings.filterwarnings('ignore')
+
 """
 Good seeds for testing:
 Ridge: Seed = 42, n = 81, M(lambdas) = 100
@@ -15,7 +18,7 @@ Ridge: Seed = 42, n = 81, M(lambdas) = 100
 
 compute_OLS_n = False
 compute_conf_beta = False
-compute_best_lambdas = True
+compute_best_lambdas = False
 
 fsize = 13				# universal fontsize for plots
 path = "figures/"
@@ -110,8 +113,9 @@ def plot_MSE_R2(n, noise):
 		R2[1][i] = lasso.R2(ztest, lasso(Xtest))
 
 	labels = ["RIDGE", "LASSO"]
+	colors = ["mediumblue","crimson"]
 
-	for i in range(2):
+	for i in range(1):
 		title = " for n = %d " %n
 		if noise:
 			end = str(n) + "_noise.pdf"
@@ -124,30 +128,56 @@ def plot_MSE_R2(n, noise):
 
 		MSEind = np.linspace(minMSE - 30, minMSE + 30, 61, dtype="int16")
 		R2ind = np.linspace(maxR2 - 30, maxR2 + 30, 61, dtype="int16")
-		plt.semilogx(lambdas[i], MSE[i], label=labels[i])
-		plt.scatter(lambdas[i][minMSE], MSE[i][minMSE], color='r', label=r"$\lambda = %1.5f$" % lambdas[i][minMSE])
-		plt.title("MSE" + title)
-		plt.legend(fontsize=fsize)
+		fig, ax1 = plt.subplots()
+		ax2 = ax1.twinx()
+		ax1.semilogx(lambdas[i], MSE[i], label="MSE", color=colors[0])
+		ax2.semilogx(lambdas[i], R2[i], label="R2", color=colors[1])
+
+		#plt.scatter(lambdas[i][minMSE], MSE[i][minMSE], color='r', label=r"$\lambda = %1.5f$" % lambdas[i][minMSE])
+		#plt.title("MSE" + title)
+		ax1.legend(loc=6, fontsize=fsize)
+		ax2.legend(loc=10, fontsize=fsize)
+		ax2.tick_params(axis='y', color=colors[1])
 		plt.xlabel(r"$log_{10}(\lambda)$", fontsize=fsize)
-		plt.ylabel("MSE", fontsize=fsize)
+		ax1.set_ylabel("MSE", fontsize=fsize)
+		ax2.set_ylabel("R2", fontsize=fsize, color=colors[1])
+
 		plt.tight_layout()
 		plt.savefig(path + "MSE_methods_" + labels[i] + "_" + end)
 		plt.show()
 
-		plt.semilogx(lambdas[i], R2[i], label=labels[i])
-		plt.scatter(lambdas[i][maxR2], R2[i][maxR2], color='r', label=r"$\lambda = %1.5f$" % lambdas[i][maxR2])
-		plt.title(r"$R^2$" + title)
-		plt.legend(fontsize=fsize)
-		plt.xlabel(r"$log_{10}(\lambda)$", fontsize=fsize)
-		plt.ylabel("$R^2$", fontsize=fsize)
-		plt.tight_layout()
-		plt.savefig(path + "R2_methods_" + labels[i] + "_" + end)
-		plt.show()
+		#plt.semilogx(lambdas[i], R2[i], label=labels[i])
+		#plt.scatter(lambdas[i][maxR2], R2[i][maxR2], color='r', label=r"$\lambda = %1.5f$" % lambdas[i][maxR2])
+		#plt.title(r"$R^2$" + title)
+		#plt.legend(fontsize=fsize)
+		#plt.xlabel(r"$log_{10}(\lambda)$", fontsize=fsize)
+		#plt.ylabel("$R^2$", fontsize=fsize)
+		#plt.tight_layout()
+		#plt.savefig(path + "R2_methods_" + labels[i] + "_" + end)
+		#plt.show()
 
 if False:
-	n = 50
+	n = 81
 	plot_MSE_R2(n, True)
 
+def plot_kfold(n, method, noise, k=10):
+
+	test, train = get_test_train_data(n, 0.2, noise)
+	xtest, ytest, ztest = test
+	xtrain, ytrain, ztrain = train
+
+	MSE, m, r = method.kFoldCV(xtrain, ytrain, ztrain,k)
+	ind = np.arange(1, k+1, 1)
+	plt.bar(ind, MSE)
+	plt.xticks(ind)
+	plt.ylabel("MSE", fontsize=fsize)
+	plt.xlabel("Fold", fontsize=fsize)
+	plt.savefig(path + "kfold.pdf")
+	plt.show()
+
+if True:
+	n = 50
+	plot_kfold(n, OLS(5), True)
 
 def plot_lamb_poly():
 	np.random.seed(42)
@@ -354,37 +384,67 @@ def plot_MSE_test_train(n, method, p_max=20):
 if False:
 	n = 81
 	plot_MSE_test_train(n, OLS(0), p_max=20)
-	plot_MSE_test_train(n, RIDGE(0, 0.001), p_max=20)
-	plot_MSE_test_train(train_data, test_data, LASSO(0, 0.001), p_max=20)
+	#plot_MSE_test_train(n, RIDGE(0, 0.001), p_max=20)
+	#plot_MSE_test_train(train_data, test_data, LASSO(0, 0.001), p_max=20)
 
 def bias_variance(n, method, p_max=20):
-	test, train = get_test_train_data(n, 0.2, noise=True)
 	p_list = np.arange(1, p_max, 1, dtype=int)
+
+	bias = np.zeros(len(p_list))
+	variance = np.zeros(len(p_list))
+	iterations = 100
+	test, train = get_test_train_data(n, 0.2, noise=False)
 	x_train, y_train, z_train = train
 	x_test, y_test, z_test = test
-	MSE = np.zeros(p_max-1)
-	bias = np.zeros(p_max-1)
-	variance = np.zeros(p_max-1)
-	iterations = 100
+	z_test1 = z_test
 
 	for i, p in enumerate(tqdm.tqdm(p_list)):
 		method.p = p
 		ztilde = np.empty((len(z_test), iterations))
 		for j in range(iterations):
+			test, train = get_test_train_data(n, 0.2, noise=True)
+			x_train, y_train, z_train = train
+			x_test, y_test, z_test = test
 			Xtrain = method.CreateDesignMatrix(x_train, y_train)
 			Xtest = method.CreateDesignMatrix(x_test, y_test)
 			method.fit(Xtrain, z_train)
 			ztilde[:,j] = method(Xtest)
-		MSE[i] = np.mean(np.mean((z_test.reshape(-1, 1) - ztilde)**2, axis=1, keepdims=True))
-		bias[i] = np.mean( (z_test.reshape(-1, 1) - np.mean(ztilde, axis=1, keepdims=True))**2 )
+		bias[i] = np.mean( (z_test1.reshape(-1, 1) - np.mean(ztilde, axis=1, keepdims=True))**2 )
 		variance[i] = np.mean( np.var(ztilde, axis=1, keepdims=True) )
 
-	plt.plot(p_list, MSE, label="MSE")
-	plt.plot(p_list, bias, label="Bias")
-	plt.plot(p_list, variance, label="Variance")
-	plt.legend()
-	plt.show()
+	return p_list, bias, variance
 
 if False:
-	n = 81
-	bias_variance(n, OLS(0), 8)
+	n = 150
+	#bias_variance(n, OLS(0), 16)
+	#bias_variance(n, RIDGE(0, 0.0005), 16)
+	if False:
+		p, bias1, var1 = bias_variance(n, LASSO(0, 0.005), 10)
+		p, bias2, var2 = bias_variance(n, LASSO(0, 0.0005), 10)
+		p, bias3, var3 = bias_variance(n, LASSO(0, 0.00005), 10)
+		plt.plot(p, bias1, linestyle='dashed', label=r"Bias. $ \lambda= 0.005$", color='r')
+		plt.plot(p, bias2, linestyle='dashed', label=r"Bias. $\lambda = 0.0005$", color='blue')
+		plt.plot(p, bias3, linestyle='dashed', label=r"Bias. $\lambda = 0.00005$", color='orange')
+		plt.plot(p, var1, label="Variance. $\lambda = 0.005$", color='r')
+		plt.plot(p, var2, label="Variance. $\lambda = 0.0005$", color='blue')
+		plt.plot(p, var3, label="Variance. $\lambda = 0.00005$",color='orange')
+		plt.xlabel("Polynomial degree", fontsize=fsize)
+		plt.ylabel("Error", fontsize=fsize)
+		plt.legend(loc='best', fontsize=fsize)
+		#plt.savefig(path + "bias_variance_LASSO_lambdas.pdf")
+		plt.show()
+	if False:
+		p, bias1, var1 = bias_variance(n, RIDGE(0, 0.05), 16)
+		p, bias2, var2 = bias_variance(n, RIDGE(0, 0.005), 16)
+		p, bias3, var3 = bias_variance(n, RIDGE(0, 0.0005), 16)
+		plt.plot(p, bias1, linestyle='dashed', label=r"Bias. $ \lambda= 0.05$", color='r')
+		plt.plot(p, bias2, linestyle='dashed', label=r"Bias. $\lambda = 0.005$", color='blue')
+		plt.plot(p, bias3, linestyle='dashed', label=r"Bias. $\lambda = 0.0005$", color='orange')
+		plt.plot(p, var1, label="Variance. $\lambda = 0.05$", color='r')
+		plt.plot(p, var2, label="Variance. $\lambda = 0.005$", color='blue')
+		plt.plot(p, var3, label="Variance. $\lambda = 0.0005$",color='orange')
+		plt.xlabel("Polynomial degree", fontsize=fsize)
+		plt.ylabel("Error", fontsize=fsize)
+		plt.legend(loc='best', fontsize=fsize)
+		plt.savefig(path + "bias_variance_Ridge_lambdas.pdf")
+		plt.show()

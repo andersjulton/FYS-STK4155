@@ -16,7 +16,7 @@ np.random.seed(42)
 
 
 fsize = 10
-Compute_K_fold = True
+Compute_K_fold = False
 Compute_lambdas = False
 filename = 'data.tif'
 
@@ -180,7 +180,7 @@ if True:
     plt.xlabel("polynomial degree", fontsize=fsize)
     plt.ylabel("MSE", fontsize=fsize)
     plt.tight_layout()
-    #plt.savefig(path + "MSE.pdf")
+    plt.savefig(path + "MSE.pdf")
     plt.show()
 
     plt.plot(p_list, ols["R2"], label="OLS")
@@ -191,5 +191,5 @@ if True:
     plt.xlabel("polynomial degree", fontsize=fsize)
     plt.ylabel(r"$R^2$", fontsize=fsize)
     plt.tight_layout()
-    #plt.savefig(path + "R2.pdf")
+    plt.savefig(path + "R2.pdf")
     plt.show()
