@@ -69,7 +69,7 @@ class Regression(object):
 
             self.fit(X[train], z[train])
             ztilde = self(X[test])
-            
+
             MSEout[i] = self.MSE(z[test], ztilde)
 
             R2 += self.R2(z[test], ztilde)

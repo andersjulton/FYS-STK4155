@@ -11,7 +11,7 @@ from sklearn.preprocessing import normalize
 compute_OLS_n = False
 compute_conf_beta = False
 compute_best_lambdas = False
-compute_bias_variance = True
+compute_bias_variance = False
 compute_MSE_R2_lambdas = False
 compute_kfold = False
 compute_MSE_test_train = False
@@ -152,7 +152,7 @@ def plot_kfold(n, method, noise, k=10):
 	print(f"Mean MSE = {MSE_}")
 	ind = np.arange(1, k+1, 1)
 	plt.bar(ind, MSE)
-	plt.plot([0.5, k+0.5], np.zeros(2) + MSE_, "--", color="gold") # mean
+	plt.plot([0.5, k+0.5], np.zeros(2) + MSE_, "--", color="crimson") # mean
 	plt.xticks(ind)
 	plt.ylabel("MSE", fontsize=fsize)
 	plt.xlabel("Fold", fontsize=fsize)

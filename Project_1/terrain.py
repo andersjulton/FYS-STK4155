@@ -86,7 +86,7 @@ def plot_reg(method, filename, p):
     plt.savefig("figures/terrain_%d.pdf" %p)
     plt.show()
 
-def find_best_lambda(filename):
+def find_best_lambda(filename, method):
     terrain = imread(filename)
     terrain = np.delete(terrain, 0, -1)
     terrain = np.delete(terrain, -1, 0)
@@ -97,35 +97,26 @@ def find_best_lambda(filename):
     xtest, ytest, ztest = test
     xtrain, ytrain, ztrain = train
 
-    M = 100
-    lambdas = np.logspace(-7, -2, M)
+    M = 50
+    lambdas = np.logspace(-9, -6, M)
 
     polys = np.arange(4, 23, 1, dtype='int')
-    MSER = np.zeros(M)
-    MSEL = MSER.copy()
-    pointsR = np.zeros(len(polys))
-    pointsL = pointsR.copy()
+    MSE = np.zeros(M)
+    points = np.zeros(len(polys))
 
     for i, p in enumerate(tqdm.tqdm(polys)):
-        ridge = RIDGE(p, 0)
-        lasso = LASSO(p, 0)
+        method.p = p
 
-        Xtrain = ridge.CreateDesignMatrix(xtrain, ytrain)
-        Xtest = ridge.CreateDesignMatrix(xtest, ytest)
+        Xtrain = method.CreateDesignMatrix(xtrain, ytrain)
+        Xtest = method.CreateDesignMatrix(xtest, ytest)
 
         for j in range(M):
-            ridge.l = lambdas[j]
-            lasso.l = lambdas[j]
+            method.l = lambdas[j]
+            method.fit(Xtrain, ztrain)
+            MSE[j] = method.MSE(ztest, method(Xtest))
 
-            ridge.fit(Xtrain, ztrain)
-            MSER[j] = ridge.MSE(ztest, ridge(Xtest))
-
-            lasso.fit(Xtrain, ztrain)
-            MSEL[j] = lasso.MSE(ztest, lasso(Xtest))
-        pointsR[i] = lambdas[np.argmin(MSER)]
-        pointsL[i] = lambdas[np.argmin(MSEL)]
-    data = {'RIDGE': pointsR, 'LASSO': pointsL}
-    np.savez("store_results/terrain_best_lambdas", **data)
+        points[i] = lambdas[np.argmin(MSE)]
+    np.savez("terrain_best_lambdas_" + str(method), *points)
 
 def K_fold(method, filename):
     start = timer()
@@ -138,23 +129,18 @@ def K_fold(method, filename):
     x, y, z = get_data_x_y_z(testTerrain)
     p_list = np.arange(4, 23, 1, dtype=int)
     N = len(p_list)
-    points = np.load("store_results/terrain_best_lambdas.npz")
-    if str(method) == "RIDGE":
-        lambdas = points["RIDGE"]
-    elif str(method) == "LASSO":
-        lambdas = points["LASSO"]
-    else:
-        lambdas = np.zeros(N)
+    lambdas = np.load("terrain_best_lambdas_" + str(method) + ".npz")
+
     k_fold = np.zeros((N, 2))
     for i in tqdm.tqdm(range(N)):
-        method.l = lambdas[i]
+        method.l = lambdas["arr_" + str(i)]
         method.p = p_list[i]
         k_fold[i] = method.kFoldCV(x, y, z, k=10)
     end = timer()
     print()
     print(str(method), "used %.3g h" %(float(end - start)/3600))
     data = {'R2': k_fold[:, 0], 'MSE' : k_fold[:, 1]}
-    np.savez("store_results/terrain_kfold_" + str(method), **data)
+    np.savez("terrain_kfold_" + str(method), **data)
 
 
 def downscale(arr, nrows, ncols):
@@ -174,21 +160,21 @@ def downscale(arr, nrows, ncols):
     newarr = np.mean(newarr, axis=(1,2))
     return newarr.reshape(int(h/nrows), int(w/ncols))
 
-plot_reg(OLS(0), filename, 19)
 
 if Compute_lambdas:
-    find_best_lambda(filename)
+    find_best_lambda(filename, LASSO(0, 0))
 
 if Compute_K_fold:
     ols = OLS(0)
     ridge = RIDGE(0, 0.001)
     lasso = LASSO(0, 0.001)
-    K_fold(ols, filename)
-    K_fold(ridge, filename)
+    #K_fold(ols, filename)
+    #K_fold(ridge, filename)
     K_fold(lasso, filename)
 
+
 if False:
-    path = "store_results/terrain_kfold_"
+    path = "terrain_kfold_"
     ols = np.load(path+ "OLS.npz")
     ridge = np.load(path + "RIDGE.npz")
     lasso = np.load(path + "LASSO.npz")
