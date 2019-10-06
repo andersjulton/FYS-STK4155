@@ -17,7 +17,7 @@ Ridge: Seed = 42, n = 81, M(lambdas) = 100
 """
 
 compute_OLS_n = False
-compute_conf_beta = True
+compute_conf_beta = False
 compute_best_lambdas = False
 
 fsize = 13				# universal fontsize for plots
@@ -403,11 +403,11 @@ def plot_MSE_test_train(n, method, p_max=20):
 	plt.ylabel("Error", fontsize=fsize)
 	plt.tight_layout()
 	#plt.grid()
-	#plt.savefig(figname)
+	plt.savefig(figname)
 	plt.show()
 
 # plotting MSE for training data & test data
-if False:
+if True:
 	n = 81
 	plot_MSE_test_train(n, OLS(0), p_max=20)
 	#plot_MSE_test_train(n, RIDGE(0, 0.001), p_max=20)
