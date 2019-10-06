@@ -9,9 +9,9 @@ from sklearn.preprocessing import normalize
 
 
 compute_OLS_n = False
-compute_conf_beta = True
+compute_conf_beta = False
 compute_best_lambdas = False
-compute_bias_variance = False
+compute_bias_variance = True
 compute_MSE_R2_lambdas = False
 compute_kfold = False
 compute_MSE_test_train = False
@@ -440,7 +440,7 @@ if compute_bias_variance:
 	lambdas = [5e-4, 5e-5, 5e-6]
 	lambda_label = [r"5 \cdot 10^{-4}", r"5 \cdot 10^{-5}", r"5 \cdot 10^{-6}"]
 	for i in range(3):
-		p, bias, var = bias_variance(n, LASSO(0, lambdas[i]), 10)
+		p, bias, var = bias_variance(n, LASSO(0, lambdas[i]), 14)
 		plt.plot(p, bias, linestyle='dashed', color=colors[i])
 		plt.plot(p, var, label=r"$\lambda = {}$".format(lambda_label[i]), color=colors[i])
 
@@ -456,7 +456,7 @@ if compute_bias_variance:
 	lambda_label = [r"5 \cdot 10^{-1}", r"5 \cdot 10^{-2}", r"5 \cdot 10^{-3}"]
 	colors = ['crimson', 'mediumblue', 'orange']
 	for i in range(3):
-		p, bias, var = bias_variance(n, RIDGE(0, lambdas[i]), 10)
+		p, bias, var = bias_variance(n, RIDGE(0, lambdas[i]), 14)
 		plt.plot(p, bias, linestyle='dashed', color=colors[i])
 		plt.plot(p, var, label=r"$\lambda = {}$".format(lambda_label[i]), color=colors[i])
 	plt.xlabel("Polynomial degree", fontsize=fsize)
