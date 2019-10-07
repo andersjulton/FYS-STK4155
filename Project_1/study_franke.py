@@ -285,32 +285,6 @@ if compute_best_lambdas:
 	plt.savefig(path + "R2_with_best_lambda.pdf")
 	plt.show()
 
-def get_best_lambda(n, method, lmin=-9, lmax=-2, M=100):
-	lambdas = np.logspace(lmin, lmax, M)
-	test, train = get_test_train_data(n, 0.2, True)
-	xtrain, ytrain, ztrain = train
-	xtest, ytest, ztest = test
-	Xtrain = method.CreateDesignMatrix(xtrain, ytrain)
-	Xtest = method.CreateDesignMatrix(xtest, ytest)
-	method.l = lambdas[0]
-	method.fit(Xtrain, ztrain)
-	ztilde = method(Xtest)
-	MSEprev = method.MSE(ztest, ztilde)
-	lamb = lambdas[0]
-
-	for i in range(1, M):
-		method.l = lambdas[i]
-		method.fit(Xtrain, ztrain)
-		ztilde = method(Xtest)
-		MSE = method.MSE(ztest, ztilde)
-		if MSE <= MSEprev:
-			MSEprev = MSE
-			lamb = lambdas[i]
-	return lamb
-
-
-
-
 
 
 def plot_conf_beta(method, n, alpha):

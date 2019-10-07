@@ -7,8 +7,8 @@ class Regression(object):
         self.p = poly_degree
 
 
-    def __call__(self, x, y=None):
-        if y == None:
+    def __call__(self, x, y="nej"):
+        if type(y) == str:
             X = x
         else:
             X = self.CreateDesignMatrix(x, y)
