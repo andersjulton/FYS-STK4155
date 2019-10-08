@@ -63,54 +63,80 @@ def get_test_train_data(N, test_size, noise=False):
 
 	return test, train
 
-def plot_frankeFunc(n):
+
+def plot(x, y, z, filename):
 	fig = plt.figure()
-	x, y = np.meshgrid(np.linspace(0, 1, n), np.linspace(0, 1, n))
-	z = FrankeFunction(x, y)
 	ax = fig.gca(projection='3d')
 	# Plot the surface.
 	surf = ax.plot_surface(x, y, z, cmap="coolwarm", linewidth=0, antialiased=False, alpha=0.5)
-
+	fig.colorbar(surf, shrink=0.5, aspect=5)
 	# Customize the z axis.
 	ax.set_zlim(-0.10, 1.40)
 	ax.zaxis.set_major_locator(LinearLocator(10))
 	ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
-
-	# Add a color bar which maps values to colors.
-	fig.colorbar(surf, shrink=0.5, aspect=5)
-	return ax
-
-
-def plot_ML(method, n, ax):
-	x, y = np.meshgrid(np.linspace(0, 1, n), np.linspace(0, 1, n))
-	x, y = np.ravel(x), np.ravel(y)
-	z = method(x, y)
-	ax.scatter(x, y, z, c=z, cmap="coolwarm")
-
-
-
-def plot_compare(method, n):
-	ax = plot_frankeFunc(n)
-	plot_ML(method, n, ax)
+	ax.view_init(30, 60)
+	ax.set_xlabel(r"$x$", fontsize=13)
+	ax.set_ylabel(r"$y$", fontsize=13)
+	ax.set_zlabel(r"$f(x, y)$", fontsize=13)
+	plt.tight_layout()
+	plt.savefig("figures/" + filename + "franke.pdf")
 	plt.show()
 
 
+def plot_frankeFunc(n):
+	x, y = np.meshgrid(np.linspace(0, 1, n), np.linspace(0, 1, n))
+	z = FrankeFunction(x, y)
+	plot(x, y, z, "")
+
+
+
+
+def plot_ML(method, n):
+	interval = np.linspace(0, 1, n)
+	x, y = np.meshgrid(interval, interval)
+	z = method(np.ravel(x), np.ravel(y)).reshape(n, n)
+	plot(x, y, z, str(method) + "_")
+
+
+
+
+
+
+def get_best_lambda(n, method, lmin=-9, lmax=-2, M=100):
+	lambdas = np.logspace(lmin, lmax, M)
+	test, train = get_test_train_data(n, 0.2, True)
+	xtrain, ytrain, ztrain = train
+	xtest, ytest, ztest = test
+	Xtrain = method.CreateDesignMatrix(xtrain, ytrain)
+	Xtest = method.CreateDesignMatrix(xtest, ytest)
+	method.l = lambdas[0]
+	method.fit(Xtrain, ztrain)
+	ztilde = method(Xtest)
+	MSEprev = method.MSE(ztest, ztilde)
+	lamb = lambdas[0]
+
+	for i in range(1, M):
+		method.l = lambdas[i]
+		method.fit(Xtrain, ztrain)
+		ztilde = method(Xtest)
+		MSE = method.MSE(ztest, ztilde)
+		if MSE <= MSEprev:
+			MSEprev = MSE
+			lamb = lambdas[i]
+	return lamb
+
+
 if __name__ == "__main__":
-	p = 5
+	np.random.seed(42)
+	# Finding good variables
+	p = 10; n = 81
+	ridge = RIDGE(p, 0)
+	l = get_best_lambda(n, ridge, lmin=-9, lmax=-2, M=100)
+	ridge.l = l
+	# Train
+	x, y, z = get_train_data(n, noise=True)
+	ridge.train(x, y, z)
+	# Plot
 	n = 100
-	x, y, z = get_train_data(n)
-
-	franke_OLS = OLS(p)
-	franke_OLS.learn(z, x, y)
-	plot_compare(franke_OLS)
-
-
-	l = 0.01
-	franke_LASSO = LASSO(p, l)
-	franke_LASSO.learn(z, x, y)
-	plot_compare(franke_LASSO)
-
-	l = 0.01
-	franke_RIDGE = RIDGE(p, l)
-	franke_RIDGE.learn(z, x, y)
-	plot_compare(franke_RIDGE)
+	plot_frankeFunc(n)
+	plot_ML(ridge, n)
