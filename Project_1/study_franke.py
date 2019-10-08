@@ -7,19 +7,21 @@ import numpy as np
 import tqdm
 from sklearn.preprocessing import normalize
 
+import warnings
+warnings.filterwarnings('ignore')
 
 compute_OLS_n = False
-compute_conf_beta = False
+compute_conf_beta = True
 compute_best_lambdas = False
 compute_bias_variance = False
 compute_MSE_R2_lambdas = False
 compute_kfold = False
 compute_MSE_test_train = False
+plot_Franke = False
+compute_dif_STD = False
 
 fsize = 13				# universal fontsize for plots
 path = "figures/"
-
-
 
 if compute_OLS_n:
 	"""
@@ -167,12 +169,12 @@ if compute_kfold:
 
 if compute_best_lambdas:
 	np.random.seed(42)
-	noise = True
-	n = 100
-	M = 100
+	noise = False
+	n = 125
+	M = 80
 	lambdas = np.logspace(-7, -1, M)
 
-	polys = np.arange(4, 30)
+	polys = np.arange(4, 20)
 	N = len(polys)
 
 	MSE_ols = np.zeros(N)
@@ -186,7 +188,7 @@ if compute_best_lambdas:
 	R2_lasso = np.zeros(N)
 	lambda_lasso = np.zeros(N) + lambdas[0]
 
-	test, train = get_test_train_data(n, test_size=0.30, noise=noise)
+	test, train = get_test_train_data(n, test_size=0.2, noise=noise)
 	xtrain, ytrain, ztrain = train
 	xtest, ytest, ztest = test
 
@@ -247,7 +249,7 @@ if compute_best_lambdas:
 	plt.xlabel("Polynomial degree", fontsize=fsize)
 	plt.ylabel(r"$\lambda$", fontsize=fsize)
 	plt.tight_layout()
-	plt.savefig(path + "best_lambda_RIDGE.pdf")
+	plt.savefig("best_lambda_RIDGE.pdf")
 	plt.show()
 
 	plt.plot(polys, np.log10(lambda_lasso), '--')
@@ -256,7 +258,7 @@ if compute_best_lambdas:
 	plt.xlabel("Polynomial degree", fontsize=fsize)
 	plt.ylabel(r"$\lambda$", fontsize=fsize)
 	plt.tight_layout()
-	plt.savefig(path + "best_lambda_LASSO.pdf")
+	plt.savefig("best_lambda_LASSO.pdf")
 	plt.show()
 
 
@@ -266,23 +268,25 @@ if compute_best_lambdas:
 	plt.plot(polys, MSE_lasso, label="LASSO")
 	plt.xlabel("Polynomial degree", fontsize=fsize)
 	plt.ylabel("MSE", fontsize=fsize)
-	plt.ylim(1, 1.1)
+	#plt.ylim(1, 1.1)
 	plt.legend(fontsize=fsize)
 	plt.tight_layout()
-	plt.savefig(path + "MSE_with_best_lambdas.pdf")
+	plt.savefig("MSE_with_best_lambdas.pdf")
 	plt.show()
 
 
 	# plot R2 for best lambdas
+	point = np.argmax(R2_ridge)
 	plt.plot(polys, R2_ols, label="OLS")
 	plt.plot(polys, R2_ridge, label="Ridge")
 	plt.plot(polys, R2_lasso, label="LASSO")
+	plt.scatter(polys[point], R2_ridge[point], color='r', label = r"p = {}, $R^2$ = {:2.3f}".format(polys[point], R2_ridge[point]))
 	plt.xlabel("Polynomial degree", fontsize=fsize)
 	plt.ylabel(r"$R^2$", fontsize=fsize)
 	plt.legend(fontsize=fsize)
-	plt.ylim(0.06, 0.09)
+	#plt.ylim(0.06, 0.09)
 	plt.tight_layout()
-	plt.savefig(path + "R2_with_best_lambda.pdf")
+	plt.savefig("R2_with_best_lambda.pdf")
 	plt.show()
 
 def get_best_lambda(n, method, lmin=-9, lmax=-2, M=100):
@@ -309,22 +313,17 @@ def get_best_lambda(n, method, lmin=-9, lmax=-2, M=100):
 	return lamb
 
 
-
-
-
-
 def plot_conf_beta(method, n, alpha):
-	if str(method) == "RIDGE" or str(method) == "LASSO":
-		method.l = get_best_lambda(n, method)
-		print(f"Lambda = {method.l:.3e} for "+ str(method))
+	#if str(method) == "RIDGE":
+		#method.l = get_best_lambda(n, method)
 	xn, yn, zn = get_train_data(n, noise=True)
 	x, y, z = get_train_data(n, noise=False)
 	Xn = method.CreateDesignMatrix(xn, yn)
 	X = method.CreateDesignMatrix(x, y)
 
-	betaSTD_f = method.confIntBeta(X, X, z, z, alpha)
+	betaSTD_f, zSTDf = method.confIntBeta(X, X, z, z, alpha)
 	beta_f = method.beta
-	betaSTD_z = method.confIntBeta(Xn, Xn, zn, zn, alpha)
+	betaSTD_z, zSTDz = method.confIntBeta(Xn, Xn, zn, zn, alpha)
 	beta_z = method.beta
 	N = len(beta_z)
 	colors = ["mediumblue","crimson"]
@@ -340,21 +339,51 @@ def plot_conf_beta(method, n, alpha):
 			color=colors[1], marker='.', markersize=7, elinewidth=2,\
 			alpha=0.5)
 	xticks = [r'$\beta_{%d}$'%i for i in range(N)]
-	plt.xticks(range(N), xticks, fontsize=fsize)
+	plt.xticks(range(N), xticks, fontsize=fsize, rotation=-45)
 	plt.xlim(-1, N)
 	plt.tight_layout()
-	plt.savefig(path + "confIntBeta_" + str(method) + ".pdf")
+	plt.savefig("confIntBeta_" + str(method) + ".pdf")
 	plt.show()
 
+def plot_dif_STD(n, alpha):
+	ols = OLS(5)
+	l = get_best_lambda(n, RIDGE(5, 0))
+	l = 7.4e-4
+	ridge = RIDGE(5, l)
+
+	xn, yn, zn = get_train_data(n, noise=True)
+	Xn = ols.CreateDesignMatrix(xn, yn)
+
+	betaSTDols, olsSTD = ols.confIntBeta(Xn, Xn, zn, zn, alpha)
+	betaSTDridge, ridgeSTD = ridge.confIntBeta(Xn, Xn, zn, zn, alpha)
+
+	beta_z = ols.beta
+	N = len(beta_z)
+	arr = np.arange(0, N)
+
+	plt.scatter(arr, olsSTD, color='green', label="OLS")
+	plt.plot(olsSTD, linestyle='--', color='green')
+	plt.scatter(arr, ridgeSTD, color='blue', label="Ridge")
+	plt.plot(ridgeSTD, linestyle='--', color='blue')
+	plt.legend(loc='best', fontsize=fsize)
+	xticks = [r'$\beta_{%d}$'%i for i in range(N)]
+	plt.xticks(range(N), xticks, fontsize=fsize, rotation=-45)
+	plt.ylabel(r"$\sqrt{Var(\beta)}$", fontsize=fsize)
+	plt.savefig("STD_difference.pdf")
+	plt.show()
 
 if compute_conf_beta:
 	np.random.seed(42)
 	n = 80
 	alpha = 1.96
-	plot_conf_beta(OLS(5), n, alpha)
-	plot_conf_beta(RIDGE(5, 0), n, alpha)
-	plot_conf_beta(LASSO(5, 0), n, alpha)
+	olsSTD = plot_conf_beta(OLS(5), n, alpha)
+	ridgeSTD = plot_conf_beta(RIDGE(5, 7.4e-4), n, alpha)
 
+if compute_dif_STD:
+	#np.random.seed(42)
+	n = 80
+	alpha = 1.96
+	plot_dif_STD(n, alpha)
 
 def plot_MSE_test_train(n, method, p_max=20):
 	test, train = get_test_train_data(n, 0.2, noise=True)
@@ -465,3 +494,22 @@ if compute_bias_variance:
 	plt.tight_layout()
 	plt.savefig(path + "bias_variance_Ridge_lambdas.pdf")
 	plt.show()
+
+if plot_Franke:
+	p = 15
+	n = 81
+	ax = plot_frankeFunc(n)
+	ax.view_init(30, 60)
+	plt.xlabel(r"x", fontsize=fsize)
+	plt.ylabel(r"y", fontsize=fsize)
+	ax.set_zlabel(r"$f(x, y)$", fontsize=fsize)
+	plt.savefig("figures/franke.pdf")
+	plt.show()
+
+	"""lasso = LASSO(p, get_best_lambda(n, LASSO(p, 0)))
+	x, y = np.meshgrid(np.linspace(0, 1, n), np.linspace(0, 1, n))
+	x, y = np.ravel(x), np.ravel(y)
+	z = lasso(x, y)
+	plt.scatter(x, y, z, c=z, cmap="coolwarm")
+	plt.show()
+"""

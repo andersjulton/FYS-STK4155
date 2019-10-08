@@ -89,9 +89,9 @@ def plot_ML(method, n, ax):
 
 
 
-def plot_compare(method):
-	ax = plot_frankeFunc(75)
-	plot_ML(method, 50, ax)
+def plot_compare(method, n):
+	ax = plot_frankeFunc(n)
+	plot_ML(method, n, ax)
 	plt.show()
 
 

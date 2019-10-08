@@ -18,6 +18,9 @@ class Regression(object):
     def fit(self, X, z):
         pass
 
+    def confIntBeta(self, Xtest, Xtrain, ztest, ztrain, alpha = 1.96):
+        pass
+
 
     def train(self, x, y, z):
         X = self.CreateDesignMatrix(x, y)
@@ -34,17 +37,6 @@ class Regression(object):
                 X[:, q + k] = x**(i - k)*y**k
         return X
 
-
-    def confIntBeta(self, Xtest, Xtrain, ztest, ztrain, alpha = 1.96):
-        self.fit(Xtrain, ztrain)
-        ztilde = self(Xtest)
-        U, s, VT = np.linalg.svd(Xtrain, full_matrices=False)
-        Dinv = np.diag(1/s**2)
-        v = (VT.T @ Dinv @ VT).diagonal()
-        zSTD = np.sum((ztest - ztilde)**2)/(len(ztest) - len(self.beta) - 1)
-        confint = alpha*np.sqrt(v*zSTD)
-
-        return confint
 
 
     # k-fold cross validation
@@ -75,7 +67,7 @@ class Regression(object):
             R2 += self.R2(z[test], ztilde)
             MSE += MSEout[i]
 
-        return R2/k, MSE/k, MSEout
+        return R2/k, MSE/k#, MSEout
 
 
     # the RR coefficient of determination.
@@ -107,6 +99,17 @@ class OLS(Regression):
         Dinv = np.diag(1/s)
         self.beta = VT.T @ Dinv @ U.T @ z
 
+    def confIntBeta(self, Xtest, Xtrain, ztest, ztrain, alpha = 1.96):
+        self.fit(Xtrain, ztrain)
+        ztilde = self(Xtest)
+        U, s, VT = np.linalg.svd(Xtrain, full_matrices=False)
+        Dinv = np.diag(1/s**2)
+        v = (VT.T @ Dinv @ VT).diagonal()
+        zSTD = np.sum((ztest - ztilde)**2)/(len(ztest) - len(self.beta) - 1)
+        confint = alpha*np.sqrt(v*zSTD)
+
+        return confint, np.sqrt(v*zSTD)
+
     def __str__(self):
         return "OLS"
 
@@ -122,6 +125,18 @@ class RIDGE(Regression):
         I = np.identity(len(X[0]))
         self.beta = np.linalg.inv(X.T @ X + self.l*I) @ X.T @ z
 
+    def confIntBeta(self, Xtest, Xtrain, ztest, ztrain, alpha = 1.96):
+        self.fit(Xtrain, ztrain)
+        ztilde = self(Xtest)
+        I = np.identity(len(Xtrain[0]))
+        zSTD = np.sum((ztest - ztilde)**2)/(len(ztest) - len(self.beta) - 1)
+        term1 = np.linalg.inv(Xtrain.T @ Xtrain + self.l*I)
+        term2 = Xtrain.T @ Xtrain
+        term3 = np.linalg.inv(Xtrain.T @ Xtrain + self.l*I)
+        v = (term1 @ term2 @ term3).diagonal()
+        confint = alpha*np.sqrt(v*zSTD)
+
+        return confint, np.sqrt(v*zSTD)
 
     def __str__(self):
         return "RIDGE"
