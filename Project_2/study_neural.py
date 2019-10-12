@@ -6,7 +6,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, accuracy_score, roc_auc_score
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
-X, y = readfile()
+X, y = readfile(True)
 
 trainingShare = 0.5
 seed  = 1
@@ -22,7 +22,10 @@ XTest = sc.transform(XTest)
 
 yTrain_onehot, yTest_onehot = onehotencoder.fit_transform(yTrain), onehotencoder.fit_transform(yTest)
 
+
 neur = NeuralNetwork(XTrain, yTrain_onehot)
 
 neur.train()
 yPredTest = neur.predict(XTest)
+
+print((yPredTest == yTest).mean())

@@ -15,11 +15,11 @@ onehotencoder = OneHotEncoder(categories="auto")
 
 
 comp_GD = False
-comp_SGD = True
+comp_SGD = False
 comp_NR = False
 
 
-X, y = readfile()
+X, y = readfile(True)
 y = y.reshape(y.size)
 
 trainingShare = 0.5
@@ -83,7 +83,7 @@ if comp_SGD:
 if comp_NR:
 
     """
-    Struggles with large data set. Memory error. Singluar matrix.
+    Struggles with large dataset. Memory error. Singluar matrix.
     Might be linalg solutions. SVD too slow.
     """
 
