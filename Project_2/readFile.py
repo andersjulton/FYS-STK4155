@@ -51,5 +51,4 @@ def readfile():
     X = X.astype('float32')
     y = y.astype('float32')
 
-    y = y.reshape(y.size)
     return X, y

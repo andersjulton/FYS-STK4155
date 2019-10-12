@@ -53,8 +53,6 @@ X = ColumnTransformer(
     remainder="passthrough"
 ).fit_transform(X)
 
-y.shape
-
 # Train-test split
 trainingShare = 0.5
 seed  = 1
@@ -69,6 +67,7 @@ XTest = sc.transform(XTest)
 
 # One-hot's of the target vector
 Y_train_onehot, Y_test_onehot = onehotencoder.fit_transform(yTrain), onehotencoder.fit_transform(yTest)
+
 
 # Remove fault entries in data
 
@@ -163,10 +162,9 @@ seaborn.set_context("notebook", font_scale=1.5, rc={"lines.linewidth": 4.5})
 
 yPred = gridSearch.predict_proba(XTest)
 
-
+print(yPred.shape)
 #skplt.metrics.plot_cumulative_gain(yTest.ravel(), yPred_onehot)
 skplt.metrics.plot_cumulative_gain(yTest.ravel(), yPred)
-
 defaults = sum(yTest == 1)
 total = len(yTest)
 defaultRate = defaults/total

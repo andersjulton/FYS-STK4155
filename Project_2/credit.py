@@ -1,136 +1,73 @@
-import pandas as pd
-import os
 import numpy as np
 import tqdm
+from readFile import *
 import matplotlib.pyplot as plt
 import scikitplot as skplt
-from scipy.integrate import simps
+from logClass import GradientDescent, StochasticGradient, NewtonRaphsons
 
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import OneHotEncoder
-from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.metrics import confusion_matrix, accuracy_score, roc_auc_score
-from sklearn.feature_extraction import DictVectorizer
+from sklearn.linear_model import LogisticRegression
 
 """
 KLADDEFIL!
 """
 
+X, y = readfile()
 
-np.random.seed(0)
-import random
-random.seed(0)
-
-def sigmoid(X):
-    z = 1/(1 + np.exp(-X))
-    return z.astype('float32')
-
-def loss_function(prob, y):
-    return (-y*np.log(prob) - (1 - y)*np.log(1 - prob)).mean()
-
-# Reading file into data frame
-cwd = os.getcwd()
-filename = cwd + '/default of credit card clients.xls'
-nanDict = {}
-df = pd.read_excel(filename, header=1, skiprows=0, index_col=0, na_values=nanDict)
-
-df.rename(index=str, columns={"default payment next month": "defaultPaymentNextMonth"}, inplace=True)
-
-df = df[df.MARRIAGE != 0]
-
-df = df[df.EDUCATION != 0]
-df = df[df.EDUCATION != 5]
-df = df[df.EDUCATION != 6]
-
-
-#df = df[df.BILL_AMT1 != 0]
-#df = df[df.BILL_AMT2 != 0]
-#df = df[df.BILL_AMT3 != 0]
-#df = df[df.BILL_AMT4 != 0]
-#df = df[df.BILL_AMT5 != 0]
-#df = df[df.BILL_AMT6 != 0]
-#
-#df = df[df.PAY_AMT1 != 0]
-#df = df[df.PAY_AMT2 != 0]
-#df = df[df.PAY_AMT3 != 0]
-#df = df[df.PAY_AMT4 != 0]
-#df = df[df.PAY_AMT5 != 0]
-#df = df[df.PAY_AMT6 != 0]
-
-X = df.loc[:, df.columns != 'defaultPaymentNextMonth'].values
-y = df.loc[:, df.columns == 'defaultPaymentNextMonth'].values
-
-# Categorical variables to one-hot's
-onehotencoder = OneHotEncoder(categories="auto")
-
-X = ColumnTransformer(
-    [("", onehotencoder, [2, 3]),],
-    remainder="passthrough"
-).fit_transform(X)
-
-intercept = np.ones((X.shape[0], 1))
-X = np.concatenate((intercept, X), axis=1)
-
-X = X.astype('float32')
-y = y.astype('float32')
-
-y = y.reshape(y.size)
-# Train-test split
 trainingShare = 0.5
 seed  = 1
 XTrain, XTest, yTrain, yTest = train_test_split(X, y,
     train_size=trainingShare,
     random_state=seed)
 
-# Input Scaling
-sc = StandardScaler()
-XTrain = sc.fit_transform(XTrain)
-XTest = sc.transform(XTest)
+# building our neural network
 
-# One-hot's of the target vector
-#yTrain, yTest = onehotencoder.fit_transform(yTrain), onehotencoder.fit_transform(yTest)
+n_inputs, n_features = XTrain.shape
+n_hidden_neurons = 50
+n_categories = 2
 
-def fit(X, y):
-    lr = 0.01
-    theta = np.zeros(X.shape[1])
-    for i in tqdm.tqdm(range(10000)):
-        z = X @ theta
-        prob = sigmoid(z)
-        gradient = (X.T @ (prob - y))/y.size
-        theta -= lr*gradient
-    return theta
+# we make the weights normally distributed using numpy.random.randn
 
-#theta = fit(XTrain, yTrain)
-#np.save("theta", theta)
+# weights and bias in the hidden layer
+hidden_weights = np.random.randn(n_features, n_hidden_neurons)
+hidden_bias = np.zeros(n_hidden_neurons) + 0.01
 
-theta = np.load("theta.npy")
+# weights and bias in the output layer
+output_weights = np.random.randn(n_hidden_neurons, n_categories)
+output_bias = np.zeros(n_categories) + 0.01
 
-z = XTrain @ theta
-yPred = sigmoid(z)
-yPred2 = 1 - yPred
-yPred3 = np.array((yPred2, yPred)).T
-print(yPred)
-ax = skplt.metrics.plot_cumulative_gain(yTrain, yPred3)
-lines = ax.lines[1]
+def sigmoid(z):
+    return 1/(1 + np.exp(-z))
 
-defaults = sum(yTrain == 1)
-total = len(yTrain)
-defaultRate = defaults/total
+def feedForward(X):
+    zh = X @ hidden_weights + hidden_bias
+    ah = sigmoid(zh)
+    zo = ah @ output_weights + output_bias
 
-def bestCurve(defaults, total, defaultRate):
-    x = np.linspace(0, 1, total)
+    return sigmoid(zo)
 
-    y1 = np.linspace(0, 1, defaults)
-    y2 = np.ones(total-defaults)
-    y3 = np.concatenate([y1,y2])
-    return x, y3
+def backPropagation(X, y, prob):
+    errorOut = (prob != y).mean()
+    errorHid = errorOut @ output_weights.T @ ah @(1 - ah)
 
-x, best = bestCurve(defaults=defaults, total=total, defaultRate=defaultRate)
-plt.plot(x, best)
+    outWgrad = ah.T @ errorOut
+    outBgrad = np.sum(errorOut, axis=0)
 
-modelArea = np.trapz(lines.get_ydata(), lines.get_xdata())
-bestArea = np.trapz(best, dx = 1/best.size)
-ratio = (modelArea - 0.5)/(bestArea - 0.5)
-#print(ratio)
-#plt.show()
+    hidWgrad = X.T @ errorHid
+    hidBgrad = np.sum(errorHid, axis=0)
+
+    if lamb > 0:
+        outWgrad += lmbd*output_weights
+        hidWgrad += lmdb*hidden_weights
+
+    output_weights -= eta
+
+probabilities = feedForward(XTrain)
+
+pred1 = probabilities[:,0].round()
+pred2 = probabilities[:,1].round()
+
+
+print((pred1 == yTrain).mean())
+print((pred2 == yTrain).mean())
