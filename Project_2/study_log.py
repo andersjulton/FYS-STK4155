@@ -84,7 +84,7 @@ if comp_NR:
 
     """
     Struggles with large dataset. Memory error. Singluar matrix.
-    Might be linalg solutions. SVD too slow.
+    Might be linalg solutions. SVD too slow. Can prob drop this method.
     """
 
     nr = NewtonRaphsons()

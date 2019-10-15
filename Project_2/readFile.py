@@ -33,9 +33,8 @@ def readfile(change_values=False):
     X = df.loc[:, df.columns != 'defaultPaymentNextMonth'].values
     y = df.loc[:, df.columns == 'defaultPaymentNextMonth'].values
 
-    # Categorical variables to one-hot's
     onehotencoder = OneHotEncoder(categories="auto")
-
+    
     X = ColumnTransformer(
         [("", onehotencoder, [2, 3]),],
         remainder="passthrough"
