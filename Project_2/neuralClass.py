@@ -2,8 +2,8 @@ import numpy as np
 import tqdm
 
 
-class NeuralNetwork:
-    def __init__(self, X, y, n_hid_neur=50, n_cat=2, n_epochs=100, b_size=100, eta=0.1, lmbd=0.1):
+class NeuralNetwork(object):
+    def __init__(self, X, y, n_hid_neur=50, n_cat=2, n_epochs=100, b_size=100, eta=0.1, lmbd=0.1, hid_layers=1):
 
         self.X_full = X
         self.Y_full = y
@@ -12,6 +12,7 @@ class NeuralNetwork:
         self.n_features = X.shape[1]
         self.n_hid_neur = n_hid_neur
         self.n_cat = n_cat
+        self.hid_layers = hid_layers
 
         self.n_epochs = n_epochs
         self.b_size = b_size
@@ -22,6 +23,18 @@ class NeuralNetwork:
         self.get_B_W()
 
     def get_B_W(self):
+        self.hid_W_first = np.random.randn(self.n_features, self.n_hid_neur)
+        self.hid_B_first = np.zeros(self.n_hid_neur) + 0.01
+        if self.hid_layers > 1:
+            self.hid_W_inner = np.zeros((self.hid_layers -1, self.n_hid_neur, self.n_hid_neur))
+            for i in range(self.hid_layers - 1):
+                self.hid_W_inner[i] = np.random.randn(self.n_hid_neur, self.n_hid_neur)
+            self.hid_B_inner = np.zeros((self.hid_layers - 1, self.n_hid_neur)) + 0.01
+
+        self.out_W = np.random.randn(self.n_hid_neur, self.n_cat)
+        self.out_B = np.zeros(self.n_cat) + 0.01
+
+    def get_B_W_old(self):
         self.hid_W = np.random.randn(self.n_features, self.n_hid_neur)
         self.hid_B = np.zeros(self.n_hid_neur) + 0.01
 
@@ -30,14 +43,25 @@ class NeuralNetwork:
 
     def feed_forward(self):
         # feed-forward for training
-        self.zh = self.X_part @ self.hid_W + self.hid_B
-        self.ah = self.sigmoid(self.zh)
-        self.zo = self.ah @ self.out_W + self.out_B
+        self.zh = self.X_part @ self.hid_W_first + self.hid_B_first
+        self.ah = np.zeros((self.hid_layers, self.b_size, self.n_hid_neur))
+        self.ah[0] = self.sigmoid(self.zh)
+        zh_next = 0
+
+        if self.hid_layers > 1:
+            for i in range(self.hid_layers - 1):
+                zh_next = self.ah[i] @ self.hid_W_inner[i] + self.hid_B_inner[i]
+                self.ah[i+1] = self.sigmoid(zh_next)
+        self.zo = self.ah[-1] @ self.out_W + self.out_B
         self.probs = self.sigmoid(self.zo)
 
     def feed_forward_out(self, X):
-        zh = X @ self.hid_W + self.hid_B
+        zh = X @ self.hid_W_first + self.hid_B_first
         ah = self.sigmoid(zh)
+        if self.hid_layers > 1:
+            for i in range(self.hid_layers - 1):
+                zh_next = ah @ self.hid_W_inner[i] + self.hid_B_inner[i]
+                ah = self.sigmoid(zh_next)
         zo = ah @ self.out_W + self.out_B
         probs = self.sigmoid(zo)
 
@@ -45,22 +69,32 @@ class NeuralNetwork:
 
     def backpropagation(self):
         error_o = self.probs - self.Y_part
-        error_h = np.multiply(np.multiply((error_o @ self.out_W.T), self.ah), (1 - self.ah))
-
-        self.out_W_grad = self.ah.T @ error_o
+        error_h_prev = np.multiply(np.multiply((error_o @ self.out_W.T), self.ah[-1]), (1 - self.ah[-1]))
+        self.out_W_grad = self.ah[-1].T @ error_o
         self.out_B_grad = np.sum(np.asarray(error_o), axis=0)
+        if self.hid_layers > 1:
+            for i in range(self.hid_layers - 2, 0, -1):
+                error_h_next = np.multiply(np.multiply((error_h_prev @ self.hid_W_inner[i].T), self.ah[i]), (1 - self.ah[i]))
+                hid_W_grad = self.ah[i].T @ error_h_next
+                hid_B_grad = np.sum(np.asarray(error_h_next), axis=0)
 
-        self.hid_W_grad = self.X_part.T @ error_h
-        self.hid_B_grad = np.sum(np.asarray(error_h), axis=0)
+                if self.lmbd > 0.0:
+                    hid_W_grad += self.lmbd*self.hid_W_inner[i]
+                self.hid_W_inner[i] -= self.eta*hid_W_grad
+                self.hid_B_inner[i] -= self.eta*hid_B_grad
+                error_h_prev = error_h_next
+
+        hid_W_grad = self.X_part.T @ error_h_prev
+        hid_B_grad = np.sum(np.asarray(error_h_prev), axis=0)
 
         if self.lmbd > 0.0:
             self.out_W_grad += self.lmbd*self.out_W
-            self.hid_W_grad += self.lmbd*self.hid_W
+            hid_W_grad += self.lmbd*self.hid_W_first
 
         self.out_W -= self.eta*self.out_W_grad
         self.out_B -= self.eta*self.out_B_grad
-        self.hid_W -= self.eta*self.hid_W_grad
-        self.hid_B -= self.eta*self.hid_B_grad
+        self.hid_W_first -= self.eta*hid_W_grad
+        self.hid_B_first -= self.eta*hid_B_grad
 
     def predict(self, X):
         probs = self.feed_forward_out(X)
@@ -92,6 +126,178 @@ class NeuralNetwork:
 
                 self.feed_forward()
                 self.backpropagation()
+
+class NeuralLogReg(NeuralNetwork):
+
+    def feed_forward(self):
+        # feed-forward for training
+        self.zh = self.X_part @ self.hid_W_first + self.hid_B_first
+        self.ah = np.zeros((self.hid_layers, self.b_size, self.n_hid_neur))
+        self.ah[0] = self.sigmoid(self.zh)
+        zh_next = 0
+
+        if self.hid_layers > 1:
+            for i in range(self.hid_layers - 1):
+                zh_next = self.ah[i] @ self.hid_W_inner[i] + self.hid_B_inner[i]
+                self.ah[i+1] = self.sigmoid(zh_next)
+        self.zo = self.ah[-1] @ self.out_W + self.out_B
+        self.probs = self.sigmoid(self.zo)
+
+    def feed_forward_out(self, X):
+        zh = X @ self.hid_W_first + self.hid_B_first
+        ah = self.sigmoid(zh)
+        if self.hid_layers > 1:
+            for i in range(self.hid_layers - 1):
+                zh_next = ah @ self.hid_W_inner[i] + self.hid_B_inner[i]
+                ah = self.sigmoid(zh_next)
+        zo = ah @ self.out_W + self.out_B
+        probs = self.sigmoid(zo)
+
+        return probs
+
+
+
+    def backpropagation(self):
+        error_o = self.probs - self.Y_part
+        error_h_prev = np.multiply(np.multiply((error_o @ self.out_W.T), self.ah[-1]), (1 - self.ah[-1]))
+        self.out_W_grad = self.ah[-1].T @ error_o
+        self.out_B_grad = np.sum(np.asarray(error_o), axis=0)
+        if self.hid_layers > 1:
+            for i in range(self.hid_layers - 2, 0, -1):
+                error_h_next = np.multiply(np.multiply((error_h_prev @ self.hid_W_inner[i].T), self.ah[i]), (1 - self.ah[i]))
+                hid_W_grad = self.ah[i].T @ error_h_next
+                hid_B_grad = np.sum(np.asarray(error_h_next), axis=0)
+
+                if self.lmbd > 0.0:
+                    hid_W_grad += self.lmbd*self.hid_W_inner[i]
+                self.hid_W_inner[i] -= self.eta*hid_W_grad
+                self.hid_B_inner[i] -= self.eta*hid_B_grad
+                error_h_prev = error_h_next
+
+        hid_W_grad = self.X_part.T @ error_h_prev
+        hid_B_grad = np.sum(np.asarray(error_h_prev), axis=0)
+
+        if self.lmbd > 0.0:
+            self.out_W_grad += self.lmbd*self.out_W
+            hid_W_grad += self.lmbd*self.hid_W_first
+
+        self.out_W -= self.eta*self.out_W_grad
+        self.out_B -= self.eta*self.out_B_grad
+        self.hid_W_first -= self.eta*hid_W_grad
+        self.hid_B_first -= self.eta*hid_B_grad
+
+    def predict(self, X):
+        probs = self.feed_forward_out(X)
+        return np.argmax(probs, axis=1)
+
+    def predict_probabilities(self, X):
+        probs = self.feed_forward_out(X)
+        return probs
+
+    def train(self):
+        indices = np.arange(self.n_inputs)
+
+        for i in tqdm.tqdm(range(self.n_epochs)):
+            for j in range(self.iterations):
+                chosen_indices = np.random.choice(indices, size=self.b_size, replace=False)
+
+                self.X_part = self.X_full[chosen_indices]
+                self.Y_part = self.Y_full[chosen_indices]
+
+                self.feed_forward()
+                self.backpropagation()
+
+class NeuralLinReg(NeuralNetwork):
+
+    def feed_forward(self):
+        # feed-forward for training
+        self.zh = self.X_part @ self.hid_W_first + self.hid_B_first
+        self.ah = np.zeros((self.hid_layers, self.b_size, self.n_hid_neur))
+        self.ah[0] = self.sigmoid(self.zh)
+        zh_next = 0
+
+        if self.hid_layers > 1:
+            for i in range(self.hid_layers - 1):
+                zh_next = self.ah[i] @ self.hid_W_inner[i] + self.hid_B_inner[i]
+                self.ah[i+1] = self.sigmoid(zh_next)
+        self.zo = self.ah[-1] @ self.out_W + self.out_B
+        self.zn = self.sigmoid(self.zo)
+
+    def feed_forward_out(self, X):
+        zh = X @ self.hid_W_first + self.hid_B_first
+        ah = self.sigmoid(zh)
+        if self.hid_layers > 1:
+            for i in range(self.hid_layers - 1):
+                zh_next = ah @ self.hid_W_inner[i] + self.hid_B_inner[i]
+                ah = self.sigmoid(zh_next)
+        zo = ah @ self.out_W + self.out_B
+        probs = self.sigmoid(zo)
+
+        return zo
+
+    def backpropagation(self):
+        error_o = 2*(self.zo - self.Y_part)/len(self.zo)
+        error_h_prev = np.multiply(np.multiply((error_o @ self.out_W.T), self.ah[-1]), (1 - self.ah[-1]))
+
+        self.out_W_grad = self.ah[-1].T @ error_o
+        self.out_B_grad = np.sum(np.asarray(error_o), axis=0)
+        if self.hid_layers > 1:
+            for i in range(self.hid_layers - 2, 0, -1):
+                error_h_next = np.multiply(np.multiply((error_h_prev @ self.hid_W_inner[i].T), self.ah[i]), (1 - self.ah[i]))
+                hid_W_grad = self.ah[i].T @ error_h_next
+                hid_B_grad = np.sum(np.asarray(error_h_next), axis=0)
+
+                if self.lmbd > 0.0:
+                    hid_W_grad += self.lmbd*self.hid_W_inner[i]
+                self.hid_W_inner[i] -= self.eta*hid_W_grad
+                self.hid_B_inner[i] -= self.eta*hid_B_grad
+                error_h_prev = error_h_next
+
+        hid_W_grad = self.X_part.T @ error_h_prev
+        hid_B_grad = np.sum(np.asarray(error_h_prev), axis=0)
+
+        if self.lmbd > 0.0:
+            self.out_W_grad += self.lmbd*self.out_W
+            hid_W_grad += self.lmbd*self.hid_W_first
+
+        self.out_W -= self.eta*self.out_W_grad
+        self.out_B -= self.eta*self.out_B_grad
+        self.hid_W_first -= self.eta*hid_W_grad
+        self.hid_B_first -= self.eta*hid_B_grad
+
+    def predict(self, X):
+        z = self.feed_forward_out(X)
+        return z
+
+
+    def train(self):
+        indices = np.arange(self.n_inputs)
+
+        for i in tqdm.tqdm(range(self.n_epochs)):
+            for j in range(self.iterations):
+                chosen_indices = np.random.choice(indices, size=self.b_size, replace=False)
+
+                self.X_part = self.X_full[chosen_indices]
+                self.Y_part = self.Y_full[chosen_indices]
+
+                self.feed_forward()
+                self.backpropagation()
+
+"""
+
+BACKUP
+
+def get_B_W(self):
+    self.hid_W_first = np.random.randn(self.n_features, self.n_hid_neur)
+    self.hid_B_first = np.zeros(self.n_hid_neur) + 0.01
+
+    self.hid_W_inner = np.zeros((self.hid_layers -1, self.n_hid_neur, self.n_hid_neur))
+    for i in range(self.hid_layers - 1):
+        self.hid_W_inner[i] = np.random.randn(self.n_hid_neur, self.n_hid_neur)
+    self.hid_B_inner = np.zeros((self.hid_layers - 1, self.n_hid_neur)) + 0.01
+
+    self.out_W = np.random.randn(self.n_hid_neur, self.n_cat)
+    self.out_B = np.zeros(self.n_cat) + 0.01
 
 class NeuralLogReg(NeuralNetwork):
 
@@ -148,13 +354,13 @@ class NeuralLogReg(NeuralNetwork):
 
                 self.feed_forward()
                 self.backpropagation()
-
 class NeuralLinReg(NeuralNetwork):
 
     def feed_forward(self):
         self.zh = self.X_part @ self.hid_W + self.hid_B
         self.ah = self.sigmoid(self.zh)
         self.zo = self.ah @ self.out_W + self.out_B
+        self.zn = self.sigmoid(self.zo)
 
 
     def feed_forward_out(self, X):
@@ -162,22 +368,18 @@ class NeuralLinReg(NeuralNetwork):
         ah = self.sigmoid(zh)
         zo = ah @ self.out_W + self.out_B
 
-        return zo
+        return self.sigmoid(zo)
 
-        """
-        cost function: np.mean((a - y)^2)
-        """
+
     def backpropagation(self):
-        error_o = 2*(self.zo - self.Y_part)/len(self.zo)
-        error_h = self.out_W.T @ error_o
+        error_o = 2*(self.zn - self.Y_part)/len(self.zo)
+        #error_h = error_o @ self.out_W.T
+        error_h = np.multiply(np.multiply((error_o @ self.out_W.T), self.ah), (1 - self.ah))
+
         self.out_W_grad = self.ah.T @ error_o
         self.out_B_grad = np.sum(np.asarray(error_o), axis=0)
-        print(self.out_B_grad.shape)
-        print(self.out_W_grad.shape)
-        print(self.out_W.shape)
-        print(self.ah.shape)
-        print(error_o.shape)
-        input()
+
+
 
         self.hid_W_grad = self.X_part.T @ error_h
         self.hid_B_grad = np.sum(np.asarray(error_h), axis=0)
@@ -208,3 +410,4 @@ class NeuralLinReg(NeuralNetwork):
 
                 self.feed_forward()
                 self.backpropagation()
+"""

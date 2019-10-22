@@ -15,7 +15,7 @@ onehotencoder = OneHotEncoder(categories="auto")
 
 
 comp_GD = False
-comp_SGD = False
+comp_SGD = True
 comp_NR = False
 
 
@@ -72,13 +72,18 @@ if comp_SGD:
     trainAreaRatio = sgd.get_Area_ratio(yTrain, yPredTrain)
     testAreaRatio = sgd.get_Area_ratio(yTest, yPredTest)
 
-    sgd.plot(yTest, yPredTest)
-    sgd.plot(yTrain, yPredTrain)
+    clf = LogisticRegression(random_state=0, solver='lbfgs', multi_class='multinomial').fit(XTrain, yTrain)
+    preds = clf.predict(XTest)
+    skscore = sgd.accuracy(yTest, preds)
+
+    #sgd.plot(yTest, yPredTest)
+    #sgd.plot(yTrain, yPredTrain)
     print("Scores for SGD method")
     print("Test score = ", scoreTest)
     print("Train score = ", scoreTrain)
     print("Test area ratio = ", testAreaRatio)
     print("Train area ratio = ", trainAreaRatio)
+    print("Sklearn = ", skscore)
 
 if comp_NR:
 

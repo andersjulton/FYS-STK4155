@@ -118,6 +118,7 @@ class NewtonRaphsons(LogisticRegression):
             beta -= Hinv @ -X.T @ (y - prob)
         self.beta = beta
 
+
     def __str__(self):
         return "NEWTON_RAPHSONS"
 
