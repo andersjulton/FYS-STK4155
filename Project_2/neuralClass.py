@@ -1,5 +1,7 @@
 import numpy as np
 import tqdm
+import matplotlib.pyplot as plt
+import scikitplot as skplt
 
 
 class NeuralNetwork(object):
@@ -30,13 +32,6 @@ class NeuralNetwork(object):
             for i in range(self.hid_layers - 1):
                 self.hid_W_inner[i] = np.random.randn(self.n_hid_neur, self.n_hid_neur)
             self.hid_B_inner = np.zeros((self.hid_layers - 1, self.n_hid_neur)) + 0.01
-
-        self.out_W = np.random.randn(self.n_hid_neur, self.n_cat)
-        self.out_B = np.zeros(self.n_cat) + 0.01
-
-    def get_B_W_old(self):
-        self.hid_W = np.random.randn(self.n_features, self.n_hid_neur)
-        self.hid_B = np.zeros(self.n_hid_neur) + 0.01
 
         self.out_W = np.random.randn(self.n_hid_neur, self.n_cat)
         self.out_B = np.zeros(self.n_cat) + 0.01
@@ -117,7 +112,7 @@ class NeuralNetwork(object):
     def train(self):
         indices = np.arange(self.n_inputs)
 
-        for i in tqdm.tqdm(range(self.n_epochs)):
+        for i in range(self.n_epochs):
             for j in range(self.iterations):
                 chosen_indices = np.random.choice(indices, size=self.b_size, replace=False)
 
@@ -126,6 +121,36 @@ class NeuralNetwork(object):
 
                 self.feed_forward()
                 self.backpropagation()
+            t = np.argmax(self.probs, axis=1)
+            #plt.hist(t)
+            #plt.show()
+            #input()
+
+    def get_Area_ratio(self, y, ypred):
+        ypred2 = 1 - ypred
+        ypred3 = np.array((ypred2, ypred)).T
+        ax = skplt.metrics.plot_cumulative_gain(y, ypred3)
+        plt.close()
+        lines = ax.lines[1]
+
+        defaults = sum(y == 1)
+        total = len(y)
+
+        def bestCurve(defaults, total):
+            x = np.linspace(0, 1, total)
+
+            y1 = np.linspace(0, 1, defaults)
+            y2 = np.ones(total-defaults)
+            y3 = np.concatenate([y1,y2])
+            return x, y3
+
+        x, best = bestCurve(defaults=defaults, total=total)
+
+        modelArea = np.sum(lines.get_ydata()[0:-1] - x)
+        bestArea = np.sum(best - x)
+        ratio = modelArea/bestArea
+
+        return ratio
 
 class NeuralLogReg(NeuralNetwork):
 
@@ -207,10 +232,10 @@ class NeuralLogReg(NeuralNetwork):
                 self.feed_forward()
                 self.backpropagation()
 
+
 class NeuralLinReg(NeuralNetwork):
 
     def feed_forward(self):
-        # feed-forward for training
         self.zh = self.X_part @ self.hid_W_first + self.hid_B_first
         self.ah = np.zeros((self.hid_layers, self.b_size, self.n_hid_neur))
         self.ah[0] = self.sigmoid(self.zh)
@@ -221,7 +246,7 @@ class NeuralLinReg(NeuralNetwork):
                 zh_next = self.ah[i] @ self.hid_W_inner[i] + self.hid_B_inner[i]
                 self.ah[i+1] = self.sigmoid(zh_next)
         self.zo = self.ah[-1] @ self.out_W + self.out_B
-        self.zn = self.sigmoid(self.zo)
+        self.ao = self.sigmoid(self.zo)
 
     def feed_forward_out(self, X):
         zh = X @ self.hid_W_first + self.hid_B_first
@@ -231,12 +256,12 @@ class NeuralLinReg(NeuralNetwork):
                 zh_next = ah @ self.hid_W_inner[i] + self.hid_B_inner[i]
                 ah = self.sigmoid(zh_next)
         zo = ah @ self.out_W + self.out_B
-        probs = self.sigmoid(zo)
+        ao = self.sigmoid(zo)
 
-        return zo
+        return ao
 
     def backpropagation(self):
-        error_o = 2*(self.zo - self.Y_part)/len(self.zo)
+        error_o = 2*(self.ao - self.Y_part)/len(self.ao)
         error_h_prev = np.multiply(np.multiply((error_o @ self.out_W.T), self.ah[-1]), (1 - self.ah[-1]))
 
         self.out_W_grad = self.ah[-1].T @ error_o
@@ -273,7 +298,7 @@ class NeuralLinReg(NeuralNetwork):
     def train(self):
         indices = np.arange(self.n_inputs)
 
-        for i in tqdm.tqdm(range(self.n_epochs)):
+        for i in range(self.n_epochs):
             for j in range(self.iterations):
                 chosen_indices = np.random.choice(indices, size=self.b_size, replace=False)
 

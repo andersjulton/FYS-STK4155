@@ -5,7 +5,7 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
 
 # Reading file into data frame
-def readfile(change_values=False):
+def readfile(change_values=False, remove_values=False):
     cwd = os.getcwd()
     filename = cwd + '/default of credit card clients.xls'
     nanDict = {}
@@ -30,11 +30,19 @@ def readfile(change_values=False):
         df[df.PAY_5 == -2] = 0
         df[df.PAY_6 == -2] = 0
 
+    if remove_values:
+        df = df[df.PAY_0 != -2] 
+        df = df[df.PAY_2 != -2]
+        df = df[df.PAY_3 != -2]
+        df = df[df.PAY_4 != -2]
+        df = df[df.PAY_5 != -2]
+        df = df[df.PAY_6 != -2]
+
     X = df.loc[:, df.columns != 'defaultPaymentNextMonth'].values
     y = df.loc[:, df.columns == 'defaultPaymentNextMonth'].values
 
     onehotencoder = OneHotEncoder(categories="auto")
-    
+
     X = ColumnTransformer(
         [("", onehotencoder, [2, 3]),],
         remainder="passthrough"

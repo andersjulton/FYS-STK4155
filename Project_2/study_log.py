@@ -75,7 +75,8 @@ if comp_SGD:
     clf = LogisticRegression(random_state=0, solver='lbfgs', multi_class='multinomial').fit(XTrain, yTrain)
     preds = clf.predict(XTest)
     skscore = sgd.accuracy(yTest, preds)
-
+    plt.plot(preds)
+    plt.show()
     #sgd.plot(yTest, yPredTest)
     #sgd.plot(yTrain, yPredTrain)
     print("Scores for SGD method")
