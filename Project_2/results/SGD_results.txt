@@ -1,0 +1,4 @@
+Test score = 0.5226
+Train score = 0.6439
+Test area ratio = 0.5806
+Train area ratio = 0.5967

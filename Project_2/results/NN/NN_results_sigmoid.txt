@@ -1,0 +1,4 @@
+Test score = 0.745, Lambda = 1.000000e-01, Eta = 1.000000e-06
+Train score = 0.500
+Test area ratio = 0.647, Lambda = 1.000000e-06, Eta = 1.000000e-02
+Train area ratio = 0.647

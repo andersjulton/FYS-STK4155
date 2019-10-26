@@ -1,13 +1,13 @@
 import numpy as np
-import tqdm
+from tqdm import tqdm
 import matplotlib.pyplot as plt
 import scikitplot as skplt
 import seaborn
 
 
 class LogisticRegression(object):
-    def __init__(self, learningRate=0.01, max_iter=10000):
-        self.lr = learningRate
+    def __init__(self, eta=0.01, max_iter=10000):
+        self.eta = eta
         self.n = max_iter
 
     def __call__(self, X):
@@ -22,7 +22,7 @@ class LogisticRegression(object):
         return val.astype('float32')    #Memory error for float64
 
 
-    def loss_function(self, prob, y):
+    def loss_function(self, y, prob):
         return (-y*np.log(prob) - (1 - y)*np.log(1 - prob)).mean()
 
 
@@ -44,21 +44,23 @@ class LogisticRegression(object):
             y3 = np.concatenate([y1,y2])
             return x, y3
 
+        baseline = np.linspace(0, 1 + 1/len(y), len(y))
+
         x, best = bestCurve(defaults=defaults, total=total)
 
-        modelArea = np.sum(lines.get_ydata()[0:-1] - x)
-        bestArea = np.sum(best - x)
-        ratio = modelArea/bestArea
+        modelArea = np.trapz(lines.get_ydata(), lines.get_xdata())
+        bestArea = np.trapz(best, x)
+        baselineArea = np.trapz(baseline, baseline)
+        ratio = (modelArea - baselineArea)/(bestArea - baselineArea)
 
         return ratio
 
 
-    def plot(self, y, ypred):
-
-        seaborn.set(style="white", context="notebook", font_scale=1.5,
+    def plot(self, y, ypred, filename):
+        seaborn.set(style="white", context="notebook", font_scale=1,
                     rc={"axes.grid": True, "legend.frameon": False,
-        "lines.markeredgewidth": 1.4, "lines.markersize": 10})
-        seaborn.set_context("notebook", font_scale=1.5, rc={"lines.linewidth": 4.5})
+        "lines.markeredgewidth": 1.4, "lines.markersize": 10, "figure.figsize": (7, 6)})
+        seaborn.set_context("notebook", font_scale=1.2, rc={"lines.linewidth": 4.5})
 
         defaults = sum(y == 1)
         total = len(y)
@@ -74,8 +76,9 @@ class LogisticRegression(object):
         x, best = bestCurve(defaults=defaults, total=total)
         yPred2 = 1 - ypred
         yPred3 = np.array((yPred2, ypred)).T
-        skplt.metrics.plot_cumulative_gain(y, yPred3)
+        skplt.metrics.plot_cumulative_gain(y, yPred3, title="")
         plt.plot(x, best)
+        plt.savefig(filename + ".pdf")
         plt.show()
 
     def accuracy(self, y, ypred):
@@ -84,50 +87,26 @@ class LogisticRegression(object):
 
 
 
-
-
 class GradientDescent(LogisticRegression):
 
     def fit(self, X, y):
         beta = np.zeros(X.shape[1])
-        for i in tqdm.tqdm(range(self.n)):
+        for i in tqdm(range(self.n)):
             z = X @ beta
             prob = self.sigmoid(z)
             gradient = np.dot(X.T, (prob - y))/y.size
-            beta -= self.lr*gradient
+            beta -= self.eta*gradient
         self.beta = beta
 
     def __str__(self):
         return "GRADIENT_DESCENT"
 
-class NewtonRaphsons(LogisticRegression):
-
-    """
-    Struggles with large data set. Memory error.
-    Also struggles with W containing zeros such that X.T @ W @ X is singular.
-    Might be linalg solutions. SVD too slow.
-    """
-
-    def fit(self, X, y):
-        beta = np.zeros(X.shape[1])
-        for i in tqdm.tqdm(range(self.n)):
-            z = X @ beta
-            prob = self.sigmoid(z)
-            W = np.diag((prob*(1 - prob)))
-            Hinv = np.linalg.inv(X.T @ W @ X)
-            beta -= Hinv @ -X.T @ (y - prob)
-        self.beta = beta
-
-
-    def __str__(self):
-        return "NEWTON_RAPHSONS"
-
 class StochasticGradient(LogisticRegression):
 
-    def __init__(self, n_epochs = 80, max_iter=10000):
+    def __init__(self, eta=None, n_epochs=80, max_iter=10000):
         self.m = max_iter
         self.n_epochs = n_epochs
-        super().__init__(max_iter, max_iter)
+        super().__init__(eta, max_iter)
 
 
     def learn_rate(self, t0, t1, t):
@@ -135,8 +114,8 @@ class StochasticGradient(LogisticRegression):
 
     def fit(self, X, y):
         beta = np.zeros(X.shape[1])
-        t0, t1 = 5, 50
-        for i in tqdm.tqdm(range(self.n_epochs)):
+        t0, t1 = 5, 100
+        for i in tqdm(range(self.n_epochs)):
             for j in range(self.m):
                 index = np.random.randint(self.m)
                 Xi = X[index:index+1]
