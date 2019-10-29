@@ -31,7 +31,7 @@ def readfile(change_values=False, remove_values=False):
         df[df.PAY_6 == -2] = 0
 
     if remove_values:
-        df = df[df.PAY_0 != -2] 
+        df = df[df.PAY_0 != -2]
         df = df[df.PAY_2 != -2]
         df = df[df.PAY_3 != -2]
         df = df[df.PAY_4 != -2]
@@ -49,7 +49,7 @@ def readfile(change_values=False, remove_values=False):
         ).fit_transform(X)
 
     intercept = np.ones((X.shape[0], 1))
-    X = np.concatenate((intercept, X), axis=1)
+    #X = np.concatenate((intercept, X), axis=1)
 
     X = X.astype('float32')
     y = y.astype('float32')

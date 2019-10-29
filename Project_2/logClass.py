@@ -89,6 +89,9 @@ class LogisticRegression(object):
 
 class GradientDescent(LogisticRegression):
 
+    def __init__(self, eta=0.01):
+        self.eta = eta
+
     def fit(self, X, y):
         beta = np.zeros(X.shape[1])
         for i in tqdm(range(self.n)):
@@ -103,10 +106,9 @@ class GradientDescent(LogisticRegression):
 
 class StochasticGradient(LogisticRegression):
 
-    def __init__(self, eta=None, n_epochs=80, max_iter=10000):
-        self.m = max_iter
+    def __init__(self, n_epochs=80, b_size=100):
+        self.b_size = b_size
         self.n_epochs = n_epochs
-        super().__init__(eta, max_iter)
 
 
     def learn_rate(self, t0, t1, t):
@@ -116,16 +118,49 @@ class StochasticGradient(LogisticRegression):
         beta = np.zeros(X.shape[1])
         t0, t1 = 5, 100
         for i in tqdm(range(self.n_epochs)):
-            for j in range(self.m):
-                index = np.random.randint(self.m)
+            for j in range(self.b_size):
+                index = np.random.randint(self.b_size)
                 Xi = X[index:index+1]
                 yi = y[index:index+1]
                 z = Xi @ beta
                 prob = self.sigmoid(z)
                 gradient = (Xi.T @ (prob - yi))/yi.size
-                eta = self.learn_rate(t0, t1, (i*self.m + j))
+                eta = self.learn_rate(t0, t1, (i*self.b_size + j))
                 beta = beta - eta*gradient
         self.beta = beta
 
     def __str__(self):
         return "STOCHASTIC_GRADIENT"
+
+class StochasticGradientMiniBatch(LogisticRegression):
+
+    def __init__(self, n_epochs=80, b_size=100):
+        self.b_size = b_size
+        self.n_epochs = n_epochs
+
+    def learn_rate(self, t0, t1, t):
+        return t0/(t + t1)
+
+    def fit(self, X, y):
+        beta = np.zeros(X.shape[1])
+        t0, t1 = 5, 50
+        m = len(y)
+
+        for i in tqdm(range(self.n_epochs)):
+            indices = np.random.permutation(m)
+            X = X[indices]
+            y = y[indices]
+            for j in range(0, m, self.b_size):
+                Xi = X[j:j+self.b_size]
+                yi = y[j:j+self.b_size]
+
+                z = Xi @ beta
+                prob = self.sigmoid(z)
+
+                gradient = (Xi.T @ (prob - yi))/yi.size
+                eta = self.learn_rate(t0, t1, (i*self.b_size + j))
+                beta -= eta*gradient
+        self.beta = beta
+
+    def __str__(self):
+        return "STOCHASTIC_GRADIENT_MINI_BATCH"

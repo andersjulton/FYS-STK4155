@@ -4,6 +4,7 @@ import scikitplot as skplt
 
 
 class NeuralNetwork(object):
+
     def __init__(self, X, y, hid_method, out_method,
         n_hid_neur=50,
         n_cat=2,
@@ -65,6 +66,9 @@ class NeuralNetwork(object):
 
 
 class NeuralLogReg(NeuralNetwork):
+
+    def cost(self, z, ztilde):
+        return -np.mean(z.T @ np.log(self.sigmoid(ztilde)) + (np.ones(z.shape) - z).T @ np.log(self.sigmoid(-ztilde)))
 
     def feed_forward(self):
         self.zh = self.X_part @ self.hid_W_first + self.hid_B_first
@@ -134,6 +138,8 @@ class NeuralLogReg(NeuralNetwork):
 
     def train(self):
         indices = np.arange(self.n_inputs)
+        #costScore = np.zeros((self.n_epochs)*(self.iterations))
+        k = 0
 
         for i in range(self.n_epochs):
             for j in range(self.iterations):
@@ -143,7 +149,11 @@ class NeuralLogReg(NeuralNetwork):
                 self.Y_part = self.Y_full[chosen_indices]
 
                 self.feed_forward()
+                #costScore[k] = self.cost(self.Y_part, self.probs)
                 self.backpropagation()
+                k += 1
+        #plt.plot(costScore)
+        #plt.show()
 
     def get_Area_ratio(self, y, ypred):
         ax = skplt.metrics.plot_cumulative_gain(y, ypred)
@@ -172,8 +182,18 @@ class NeuralLogReg(NeuralNetwork):
 
         return ratio
 
+    def sigmoid(self, z, deriv=False):
+        sigm = 1/(1 + np.exp(-z))
+        if deriv:
+            return sigm*(1 - sigm)
+        else:
+            return sigm
+
 
 class NeuralLinReg(NeuralNetwork):
+
+    def cost(self, z, ztilde):
+        return np.mean((z - ztilde)**2)
 
     def feed_forward(self):
         self.zh = self.X_part @ self.hid_W_first + self.hid_B_first

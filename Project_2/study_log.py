@@ -1,6 +1,7 @@
 import numpy as np
 from readFile import *
-from logClass import GradientDescent, StochasticGradient
+from logClass import GradientDescent, StochasticGradient, StochasticGradientMiniBatch
+import matplotlib.pyplot as plt
 
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.model_selection import train_test_split
@@ -10,7 +11,7 @@ from imblearn.over_sampling import SMOTE
 from imblearn.under_sampling import RandomUnderSampler
 
 comp_GD = False
-comp_SGD = False
+comp_SGD = True
 comp_sklearn = False
 
 figpath = "figures/"
@@ -35,11 +36,15 @@ def get_credit_data(change_values=True, remove_values=False, up_sample=False, do
         XTrain, yTrain = RandomUnderSampler(random_state=1).fit_resample(XTrain, yTrain)
 
     #yTrain_onehot, yTest_onehot = onehotencoder.fit_transform(yTrain), onehotencoder.fit_transform(yTest)
-
     sc = StandardScaler()
-    XTrain = sc.fit_transform(XTrain)
-    XTest = sc.transform(XTest)
+    XTrain_sub = sc.fit_transform(XTrain[:,18:-1])
+    XTest_sub = sc.transform(XTest[:,18:-1])
 
+    XTrain = np.concatenate((XTrain[:,0:17], XTrain_sub), axis=1)
+    XTest = np.concatenate((XTest[:,0:17], XTest_sub), axis=1)
+
+    XTrain[:,9] = (XTrain[:,9] - np.mean(XTrain[:,9]))/np.std(XTrain[:,9])
+    XTest[:,9] = (XTest[:,9] - np.mean(XTest[:,9]))/np.std(XTest[:,9])
     test = [XTest, yTest]
     train = [XTrain, yTrain]
 
@@ -59,6 +64,7 @@ if comp_GD:
 
     yPredTest = gd(XTest)
     yPredTrain = gd(XTrain)
+
 
     scoreTest = gd.accuracy(yTest, yPredTest)
     scoreTrain = gd.accuracy(yTrain, yPredTrain)
@@ -91,11 +97,19 @@ if comp_SGD:
 
     yTrain = np.ravel(yTrain)
 
-    sgd = StochasticGradient(max_iter = 5000, n_epochs = 100)
+
+    sgd = StochasticGradient(b_size = 256, n_epochs = 1000000//256)
     sgd.fit(XTrain, yTrain)
 
     yPredTest = sgd(XTest)
     yPredTrain = sgd(XTrain)
+
+    fig, ax = plt.subplots(1, 2)
+    ax[0].hist(np.round(yPredTest))
+    ax[1].hist(np.round(yPredTrain))
+    ax[0].set_title("Test")
+    ax[1].set_title("Train")
+    plt.show()
 
     scoreTest = sgd.accuracy(yTest, yPredTest)
     scoreTrain = sgd.accuracy(yTrain, yPredTrain)
@@ -103,7 +117,7 @@ if comp_SGD:
     trainAreaRatio = sgd.get_Area_ratio(yTrain, yPredTrain)
     testAreaRatio = sgd.get_Area_ratio(yTest, yPredTest)
 
-    sgd.plot(yTest, yPredTest, figpath + "SGD_credit_test")
+    """sgd.plot(yTest, yPredTest, figpath + "SGD_credit_test")
     sgd.plot(yTrain, yPredTrain, figpath + "SGD_credit_train")
 
     file = open(respath + "SGD_results.txt", "w+")
@@ -112,7 +126,7 @@ if comp_SGD:
     file.write("Train score = %1.4f\n" % scoreTrain)
     file.write("Test area ratio = %1.4f\n" % testAreaRatio)
     file.write("Train area ratio = %1.4f\n" % trainAreaRatio)
-    file.close()
+    file.close()"""
 
     print("Scores for SGD method")
     print("Test score = ", scoreTest)

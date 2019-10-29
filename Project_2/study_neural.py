@@ -23,7 +23,7 @@ datapath = "datafiles/"
 respath = "results/NN/"
 
 
-comp_credit = False
+comp_credit = True
 comp_sklearn = False
 comp_franke = False
 
@@ -38,9 +38,10 @@ def get_credit_data(change_values=True, remove_values=False, up_sample=False, do
         random_state=seed)
 
     onehotencoder = OneHotEncoder(categories="auto")
-
+    print(Xtrain[0])
+    input()
     sc = StandardScaler()
-    XTrain = sc.fit_transform(XTrain)
+    XTrain_sub = sc.fit_transform(XTrain)
     XTest = sc.transform(XTest)
 
     if up_sample:
@@ -67,11 +68,11 @@ if comp_credit:
     scoresArea = np.zeros((2, len(eta), len(lmbd)))
     NNdata = np.zeros((len(eta), len(lmbd)), dtype=object)
 
-    hid_AF = ActivationFunctions().PReLU
+    hid_AF = ActivationFunctions().sigmoid
     out_AF = ActivationFunctions().sigmoid
 
-    run = True
-    act = "_PReLU"
+    run = False
+    act = "_sigmoid"
 
     if run:
         for i, e in enumerate(tqdm(eta)):
@@ -89,7 +90,7 @@ if comp_credit:
                 neur.train()
                 NNdata[i][j] = neur
 
-        np.save(datapath + "NN_data_credit" + act, NNdata)
+        #np.save(datapath + "NN_data_credit" + act, NNdata)
 
     else:
         NNdata = np.load(datapath + "NN_data_credit" + act + ".npy", allow_pickle=True)
@@ -112,14 +113,14 @@ if comp_credit:
     mxr, myr = np.unravel_index(np.argmax(scoresArea[0]), scoresArea[0].shape)
     mx, my = np.unravel_index(np.argmax(scores[0]), scores[0].shape)
 
-    file = open(respath + "NN_results" + act +".txt", "w+")
+    """file = open(respath + "NN_results" + act +".txt", "w+")
 
     file.write("Test score = %1.3f, Lambda = %e, Eta = %e\n" % (np.max(scores[0]), lmbd[my], eta[mx]))
     file.write("Train score = %1.3f\n" % np.max(scores[1]))
     file.write("Test area ratio = %1.3f, Lambda = %e, Eta = %e\n" % (np.max(scoresArea[0]), lmbd[myr], eta[mxr]))
     file.write("Train area ratio = %1.3f\n" % np.max(scoresArea[1]))
     file.close()
-
+"""
 
 
     sns.set()
@@ -141,7 +142,7 @@ if comp_credit:
             ax[i][j].set_ylim(bottom + 0.5, top - 0.5)
 
 
-    plt.savefig(figpath + "NN_credit" + act + ".pdf")
+    #plt.savefig(figpath + "NN_credit" + act + ".pdf")
     plt.show()
 
 
