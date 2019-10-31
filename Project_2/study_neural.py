@@ -38,10 +38,9 @@ def get_credit_data(change_values=True, remove_values=False, up_sample=False, do
         random_state=seed)
 
     onehotencoder = OneHotEncoder(categories="auto")
-    print(Xtrain[0])
-    input()
+
     sc = StandardScaler()
-    XTrain_sub = sc.fit_transform(XTrain)
+    XTrain = sc.fit_transform(XTrain)
     XTest = sc.transform(XTest)
 
     if up_sample:

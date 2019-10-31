@@ -6,19 +6,20 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import roc_auc_score, f1_score
 
 from imblearn.over_sampling import SMOTE
 from imblearn.under_sampling import RandomUnderSampler
 
 comp_GD = False
-comp_SGD = True
+comp_SGD = False
+comp_SGD_MB = True
 comp_sklearn = False
 
 figpath = "figures/"
 respath = "results/"
 
 def get_credit_data(change_values=True, remove_values=False, up_sample=False, down_sample=False):
-
 
     onehotencoder = OneHotEncoder(categories="auto")
 
@@ -98,11 +99,14 @@ if comp_SGD:
     yTrain = np.ravel(yTrain)
 
 
-    sgd = StochasticGradient(b_size = 256, n_epochs = 1000000//256)
+    sgd = StochasticGradient(b_size = 256, n_epochs = 1000000//256, eta=0.001)
     sgd.fit(XTrain, yTrain)
 
     yPredTest = sgd(XTest)
     yPredTrain = sgd(XTrain)
+
+    print("Sklearn: ", roc_auc_score(yTest, yPredTest))
+    print("F1: ", f1_score(yTest, np.round(yPredTest)))
 
     fig, ax = plt.subplots(1, 2)
     ax[0].hist(np.round(yPredTest))
@@ -133,6 +137,54 @@ if comp_SGD:
     print("Train score = ", scoreTrain)
     print("Test area ratio = ", testAreaRatio)
     print("Train area ratio = ", trainAreaRatio)
+
+if comp_SGD_MB:
+    test, train = get_credit_data(change_values=True, remove_values=False, down_sample=False)
+    XTest, yTest = test
+    XTrain, yTrain = train
+    yTrain = np.ravel(yTrain)
+
+    eta = np.linspace(-6, -1, 6)
+    scores = np.zeros((2, len(eta)))
+    areaRatio = scores.copy()
+
+    for i, e in enumerate(eta):
+        sgd_mb = StochasticGradientMiniBatch(b_size = 256, n_epochs = 100000//256, eta = 10**e)
+        sgd_mb.fit(XTrain, yTrain)
+
+        yPredTest = sgd_mb(XTest)
+        yPredTrain = sgd_mb(XTrain)
+
+        scores[0][i] = sgd_mb.accuracy(yTest, yPredTest)
+        scores[1][i] = sgd_mb.accuracy(yTrain, yPredTrain)
+
+        areaRatio[0][i] = sgd_mb.get_Area_ratio(yTest, yPredTest)
+        areaRatio[1][i] = sgd_mb.get_Area_ratio(yTrain, yPredTrain)
+
+    plt.plot(eta, scores[0], label="Accuracy test")
+    plt.plot(eta, scores[1], label="Accuracy train")
+    plt.plot(eta, areaRatio[0], label="Ratio test")
+    plt.plot(eta, areaRatio[1], label="Ratio train")
+    plt.legend()
+    plt.show()
+
+
+    """sgd_mb.plot(yTest, yPredTest, figpath + "SGD_MB_credit_test")
+    sgd_mb.plot(yTrain, yPredTrain, figpath + "SGD_MB_credit_train")
+
+    file = open(respath + "SGD_MB_results.txt", "w+")
+
+    file.write("Test score = %1.4f\n" % scoreTest)
+    file.write("Train score = %1.4f\n" % scoreTrain)
+    file.write("Test area ratio = %1.4f\n" % testAreaRatio)
+    file.write("Train area ratio = %1.4f\n" % trainAreaRatio)
+    file.close()
+
+    print("Scores for SGD_MB method")
+    print("Test score = ", scoreTest)
+    print("Train score = ", scoreTrain)
+    print("Test area ratio = ", testAreaRatio)
+    print("Train area ratio = ", trainAreaRatio)"""
 
 if comp_sklearn:
 

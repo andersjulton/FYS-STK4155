@@ -33,6 +33,7 @@ class NeuralNetwork(object):
 
         self.get_B_W()
 
+
     def get_B_W(self):
         self.hid_W_first = np.random.randn(self.n_features, self.n_hid_neur)
         self.hid_B_first = np.zeros(self.n_hid_neur) + 0.01
@@ -70,6 +71,7 @@ class NeuralLogReg(NeuralNetwork):
     def cost(self, z, ztilde):
         return -np.mean(z.T @ np.log(self.sigmoid(ztilde)) + (np.ones(z.shape) - z).T @ np.log(self.sigmoid(-ztilde)))
 
+
     def feed_forward(self):
         self.zh = self.X_part @ self.hid_W_first + self.hid_B_first
         self.ah = np.zeros((self.hid_layers, self.b_size, self.n_hid_neur))
@@ -87,6 +89,7 @@ class NeuralLogReg(NeuralNetwork):
         self.zo = self.ah[-1] @ self.out_W + self.out_B
         self.probs = self.out_method(self.zo)
 
+
     def feed_forward_out(self, X):
         zh = X @ self.hid_W_first + self.hid_B_first
         ah = self.hid_method(zh)
@@ -96,8 +99,8 @@ class NeuralLogReg(NeuralNetwork):
                 ah = self.hid_method(zh_next)
         zo = ah @ self.out_W + self.out_B
         probs = self.out_method(zo)
-
         return probs
+
 
     def backpropagation(self):
         error_o = self.probs - self.Y_part
@@ -128,13 +131,16 @@ class NeuralLogReg(NeuralNetwork):
         self.hid_W_first -= self.eta*hid_W_grad
         self.hid_B_first -= self.eta*hid_B_grad
 
+
     def predict(self, X):
         probs = self.feed_forward_out(X)
         return np.argmax(probs, axis=1)
 
+
     def predict_proba(self, X):
         probs = self.feed_forward_out(X)
         return probs
+
 
     def train(self):
         indices = np.arange(self.n_inputs)
@@ -154,6 +160,7 @@ class NeuralLogReg(NeuralNetwork):
                 k += 1
         #plt.plot(costScore)
         #plt.show()
+
 
     def get_Area_ratio(self, y, ypred):
         ax = skplt.metrics.plot_cumulative_gain(y, ypred)
@@ -182,6 +189,7 @@ class NeuralLogReg(NeuralNetwork):
 
         return ratio
 
+
     def sigmoid(self, z, deriv=False):
         sigm = 1/(1 + np.exp(-z))
         if deriv:
@@ -194,6 +202,7 @@ class NeuralLinReg(NeuralNetwork):
 
     def cost(self, z, ztilde):
         return np.mean((z - ztilde)**2)
+
 
     def feed_forward(self):
         self.zh = self.X_part @ self.hid_W_first + self.hid_B_first
@@ -210,6 +219,7 @@ class NeuralLinReg(NeuralNetwork):
         self.zo = self.ah[-1] @ self.out_W + self.out_B
         self.ao = self.out_method(self.zo)
 
+
     def feed_forward_out(self, X):
         zh = X @ self.hid_W_first + self.hid_B_first
         ah = self.hid_method(zh)
@@ -219,8 +229,8 @@ class NeuralLinReg(NeuralNetwork):
                 ah = self.hid_method(zh_next)
         zo = ah @ self.out_W + self.out_B
         ao = self.out_method(zo)
-
         return ao
+
 
     def backpropagation(self):
         error_o = 2*(self.ao - self.Y_part)/len(self.ao)
@@ -252,6 +262,7 @@ class NeuralLinReg(NeuralNetwork):
         self.hid_W_first -= self.eta*hid_W_grad
         self.hid_B_first -= self.eta*hid_B_grad
 
+
     def predict(self, X):
         z = self.feed_forward_out(X)
         return z
@@ -271,10 +282,10 @@ class NeuralLinReg(NeuralNetwork):
                 self.backpropagation()
 
 
-
 class ActivationFunctions(object):
     def __init__(self, a=0.01):
         self.a = a
+
 
     def sigmoid(self, z, deriv=False):
         sigm = 1/(1 + np.exp(-z))
@@ -282,6 +293,7 @@ class ActivationFunctions(object):
             return sigm*(1 - sigm)
         else:
             return sigm
+
 
     def ReLU(self, z, deriv=False):
         zn = np.zeros(z.shape)
@@ -291,6 +303,7 @@ class ActivationFunctions(object):
         else:
             zn[indices] = z[indices]
         return zn
+
 
     def PReLU(self, z, deriv=False):
         indices = np.where(z >= 0)
@@ -302,11 +315,13 @@ class ActivationFunctions(object):
             zn[indices] = z[indices]
         return zn
 
+
     def tanh(self, z, deriv=False):
         if deriv:
             return 1 - np.tanh(z)**2
         else:
             return np.tanh(z)
+
 
     def identity(self, z, deriv=False):
         if deriv:
