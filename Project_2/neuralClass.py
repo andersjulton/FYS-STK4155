@@ -5,9 +5,7 @@ import scikitplot as skplt
 
 class NeuralNetwork(object):
 
-    def __init__(self, X, y, hid_method, out_method,
-        n_hid_neur=50,
-        n_cat=2,
+    def __init__(self, X, y, hid_actFunc, out_actFunc,
         n_epochs=100,
         b_size=100,
         eta=0.1,
@@ -16,13 +14,13 @@ class NeuralNetwork(object):
 
         self.X_full = X
         self.Y_full = y
-        self.hid_method = hid_method
-        self.out_method = out_method
+        self.hid_actFunc = hid_actFunc
+        self.out_actFunc = out_actFunc
 
         self.n_inputs = X.shape[0]
         self.n_features = X.shape[1]
-        self.n_hid_neur = n_hid_neur
-        self.n_cat = n_cat
+        self.n_cat = y.shape[1]
+        self.n_hid_neur = int(np.mean(self.n_features + self.n_cat))
         self.hid_layers = hid_layers
 
         self.n_epochs = n_epochs
@@ -38,7 +36,7 @@ class NeuralNetwork(object):
         self.hid_W_first = np.random.randn(self.n_features, self.n_hid_neur)
         self.hid_B_first = np.zeros(self.n_hid_neur) + 0.01
         if self.hid_layers > 1:
-            self.hid_W_inner = np.zeros((self.hid_layers -1, self.n_hid_neur, self.n_hid_neur))
+            self.hid_W_inner = np.zeros((self.hid_layers - 1, self.n_hid_neur, self.n_hid_neur))
             for i in range(self.hid_layers - 1):
                 self.hid_W_inner[i] = np.random.randn(self.n_hid_neur, self.n_hid_neur)
             self.hid_B_inner = np.zeros((self.hid_layers - 1, self.n_hid_neur)) + 0.01
@@ -76,29 +74,29 @@ class NeuralLogReg(NeuralNetwork):
         self.zh = self.X_part @ self.hid_W_first + self.hid_B_first
         self.ah = np.zeros((self.hid_layers, self.b_size, self.n_hid_neur))
         self.ahderiv = np.zeros((self.hid_layers, self.b_size, self.n_hid_neur))
-        self.ah[0] = self.hid_method(self.zh)
-        self.ahderiv[0] = self.hid_method(self.zh, deriv=True)
+        self.ah[0] = self.hid_actFunc(self.zh)
+        self.ahderiv[0] = self.hid_actFunc(self.zh, deriv=True)
         zh_next = 0
 
         if self.hid_layers > 1:
             for i in range(self.hid_layers - 1):
                 zh_next = self.ah[i] @ self.hid_W_inner[i] + self.hid_B_inner[i]
-                self.ah[i+1] = self.hid_method(zh_next)
-                self.ahderiv[i+1] = self.hid_method(zh_next, deriv=True)
+                self.ah[i+1] = self.hid_actFunc(zh_next)
+                self.ahderiv[i+1] = self.hid_actFunc(zh_next, deriv=True)
 
         self.zo = self.ah[-1] @ self.out_W + self.out_B
-        self.probs = self.out_method(self.zo)
+        self.probs = self.out_actFunc(self.zo)
 
 
     def feed_forward_out(self, X):
         zh = X @ self.hid_W_first + self.hid_B_first
-        ah = self.hid_method(zh)
+        ah = self.hid_actFunc(zh)
         if self.hid_layers > 1:
             for i in range(self.hid_layers - 1):
                 zh_next = ah @ self.hid_W_inner[i] + self.hid_B_inner[i]
-                ah = self.hid_method(zh_next)
+                ah = self.hid_actFunc(zh_next)
         zo = ah @ self.out_W + self.out_B
-        probs = self.out_method(zo)
+        probs = self.out_actFunc(zo)
         return probs
 
 
@@ -113,8 +111,7 @@ class NeuralLogReg(NeuralNetwork):
                 hid_W_grad = self.ah[i].T @ error_h_next
                 hid_B_grad = np.sum(np.asarray(error_h_next), axis=0)
 
-                if self.lmbd > 0.0:
-                    hid_W_grad += self.lmbd*self.hid_W_inner[i]
+                hid_W_grad += self.lmbd*self.hid_W_inner[i]
                 self.hid_W_inner[i] -= self.eta*hid_W_grad
                 self.hid_B_inner[i] -= self.eta*hid_B_grad
                 error_h_prev = error_h_next
@@ -122,9 +119,9 @@ class NeuralLogReg(NeuralNetwork):
         hid_W_grad = self.X_part.T @ error_h_prev
         hid_B_grad = np.sum(np.asarray(error_h_prev), axis=0)
 
-        if self.lmbd > 0.0:
-            self.out_W_grad += self.lmbd*self.out_W
-            hid_W_grad += self.lmbd*self.hid_W_first
+
+        self.out_W_grad += self.lmbd*self.out_W
+        hid_W_grad += self.lmbd*self.hid_W_first
 
         self.out_W -= self.eta*self.out_W_grad
         self.out_B -= self.eta*self.out_B_grad
@@ -144,8 +141,6 @@ class NeuralLogReg(NeuralNetwork):
 
     def train(self):
         indices = np.arange(self.n_inputs)
-        #costScore = np.zeros((self.n_epochs)*(self.iterations))
-        k = 0
 
         for i in range(self.n_epochs):
             for j in range(self.iterations):
@@ -155,11 +150,8 @@ class NeuralLogReg(NeuralNetwork):
                 self.Y_part = self.Y_full[chosen_indices]
 
                 self.feed_forward()
-                #costScore[k] = self.cost(self.Y_part, self.probs)
                 self.backpropagation()
-                k += 1
-        #plt.plot(costScore)
-        #plt.show()
+            #print("Cost score = %1.4f" % self.cost(self.Y_part, self.probs), end="\r")
 
 
     def get_Area_ratio(self, y, ypred):
@@ -208,27 +200,27 @@ class NeuralLinReg(NeuralNetwork):
         self.zh = self.X_part @ self.hid_W_first + self.hid_B_first
         self.ah = np.zeros((self.hid_layers, self.b_size, self.n_hid_neur))
         self.ahderiv = self.ah.copy()
-        self.ah[0] = self.hid_method(self.zh)
-        self.ahderiv[0] = self.hid_method(self.zh, deriv=True)
+        self.ah[0] = self.hid_actFunc(self.zh)
+        self.ahderiv[0] = self.hid_actFunc(self.zh, deriv=True)
         zh_next = 0
 
         if self.hid_layers > 1:
             for i in range(self.hid_layers - 1):
                 zh_next = self.ah[i] @ self.hid_W_inner[i] + self.hid_B_inner[i]
-                self.ah[i+1] = self.hid_method(zh_next)
+                self.ah[i+1] = self.hid_actFunc(zh_next)
         self.zo = self.ah[-1] @ self.out_W + self.out_B
-        self.ao = self.out_method(self.zo)
+        self.ao = self.out_actFunc(self.zo)
 
 
     def feed_forward_out(self, X):
         zh = X @ self.hid_W_first + self.hid_B_first
-        ah = self.hid_method(zh)
+        ah = self.hid_actFunc(zh)
         if self.hid_layers > 1:
             for i in range(self.hid_layers - 1):
                 zh_next = ah @ self.hid_W_inner[i] + self.hid_B_inner[i]
-                ah = self.hid_method(zh_next)
+                ah = self.hid_actFunc(zh_next)
         zo = ah @ self.out_W + self.out_B
-        ao = self.out_method(zo)
+        ao = self.out_actFunc(zo)
         return ao
 
 
@@ -244,8 +236,8 @@ class NeuralLinReg(NeuralNetwork):
                 hid_W_grad = self.ah[i].T @ error_h_next
                 hid_B_grad = np.sum(np.asarray(error_h_next), axis=0)
 
-                if self.lmbd > 0.0:
-                    hid_W_grad += self.lmbd*self.hid_W_inner[i]
+
+                hid_W_grad += self.lmbd*self.hid_W_inner[i]
                 self.hid_W_inner[i] -= self.eta*hid_W_grad
                 self.hid_B_inner[i] -= self.eta*hid_B_grad
                 error_h_prev = error_h_next
@@ -253,9 +245,9 @@ class NeuralLinReg(NeuralNetwork):
         hid_W_grad = self.X_part.T @ error_h_prev
         hid_B_grad = np.sum(np.asarray(error_h_prev), axis=0)
 
-        if self.lmbd > 0.0:
-            self.out_W_grad += self.lmbd*self.out_W
-            hid_W_grad += self.lmbd*self.hid_W_first
+
+        self.out_W_grad += self.lmbd*self.out_W
+        hid_W_grad += self.lmbd*self.hid_W_first
 
         self.out_W -= self.eta*self.out_W_grad
         self.out_B -= self.eta*self.out_B_grad

@@ -7,9 +7,8 @@ import seaborn
 
 class LogisticRegression(object):
 
-
     def __call__(self, X):
-        z = X @ self.beta
+        z = X @ self.theta
         return 1/(1 + np.exp(-z))
 
 
@@ -89,18 +88,22 @@ class LogisticRegression(object):
 
 class GradientDescent(LogisticRegression):
 
-    def __init__(self, eta=0.01):
-        self.eta = eta
+    """
+    Gradient Descent method
+    """
 
+    def __init__(self, eta=0.001, max_iter=100000):
+        self.eta = eta
+        self.n = max_iter
 
     def fit(self, X, y):
-        beta = np.zeros(X.shape[1])
+        theta = np.zeros(X.shape[1])
         for i in tqdm(range(self.n)):
-            z = X @ beta
+            z = X @ theta
             prob = self.sigmoid(z)
             gradient = np.dot(X.T, (prob - y))/y.size
-            beta -= self.eta*gradient
-        self.beta = beta
+            theta -= self.eta*gradient
+        self.theta = theta
 
 
     def __str__(self):
@@ -108,29 +111,32 @@ class GradientDescent(LogisticRegression):
 
 class StochasticGradient(LogisticRegression):
 
-    def __init__(self, n_epochs=80, b_size=100):
-        self.b_size = b_size
+    """
+    Stochastic Gradient Descent method with momentum.
+    """
+
+    def __init__(self, n_epochs=80, eta=0.001, gamma=0.9):
         self.n_epochs = n_epochs
-
-
-    def learn_rate(self, t0, t1, t):
-        return t0/(t + t1)
+        self.gamma = gamma
+        self.eta = eta
 
 
     def fit(self, X, y):
-        beta = np.zeros(X.shape[1])
-        t0, t1 = 5, 100
+        theta = np.zeros(X.shape[1])
+        vp = 0
+        m = len(y)
         for i in tqdm(range(self.n_epochs)):
-            for j in range(self.b_size):
-                index = np.random.randint(self.b_size)
+            for j in range(m):
+                index = np.random.randint(m)
                 Xi = X[index]
                 yi = y[index]
-                z = Xi @ beta
+                z = Xi @ theta
                 prob = self.sigmoid(z)
-                gradient = (Xi.T @ (prob - yi))/yi.size
-                eta = self.learn_rate(t0, t1, (i*self.b_size + j))
-                beta = beta - eta*gradient
-        self.beta = beta
+                gradient = np.dot(Xi.T, (prob - yi))/yi.size
+                vn = self.gamma*vp + self.eta*gradient
+                theta -= vn
+                vp = vn
+        self.theta = theta
 
 
     def __str__(self):
@@ -138,21 +144,21 @@ class StochasticGradient(LogisticRegression):
 
 class StochasticGradientMiniBatch(LogisticRegression):
 
-    def __init__(self, n_epochs=80, b_size=100, eta= 0.01):
+    """
+    Stochastic Gradient Descent method with mini-batches and momentum.
+    """
+
+    def __init__(self, n_epochs=80, b_size=100, eta= 0.01, gamma=0.9):
         self.b_size = b_size
         self.n_epochs = n_epochs
         self.eta = eta
-
-
-    def learn_rate(self, t0, t1, t):
-        return t0/(t + t1)
+        self.gamma = gamma
 
 
     def fit(self, X, y):
-        beta = np.zeros(X.shape[1])
-        t0, t1 = 5, 50
+        theta = np.zeros(X.shape[1])
         m = len(y)
-
+        vp = 0
         for i in tqdm(range(self.n_epochs)):
             indices = np.random.permutation(m)
             X = X[indices]
@@ -161,13 +167,61 @@ class StochasticGradientMiniBatch(LogisticRegression):
                 Xi = X[j:j+self.b_size]
                 yi = y[j:j+self.b_size]
 
-                z = Xi @ beta
+                z = Xi @ theta
                 prob = self.sigmoid(z)
 
                 gradient = (Xi.T @ (prob - yi))/yi.size
-                beta -= self.eta*gradient
-        self.beta = beta
+                vn = self.gamma*vp + self.eta*gradient
+                theta -= vn
+                vp = vn
+        self.theta = theta
 
 
     def __str__(self):
         return "STOCHASTIC_GRADIENT_MINI_BATCH"
+
+class ADAM(LogisticRegression):
+
+    """
+    ADAM optimizer with mini-batches.
+    """
+
+    def __init__(self, n_epochs=80, b_size=100, eta=0.001, beta1= 0.9, beta2=0.999, eps=1e-8):
+        self.b_size = b_size
+        self.n_epochs = n_epochs
+        self.eta = eta
+        self.beta1 = beta1
+        self.beta2 = beta2
+        self.eps = eps
+
+
+    def fit(self, X, y):
+        theta = np.zeros(X.shape[1])
+        mp = 0
+        sp = 0
+        m = len(y)
+
+        for i in tqdm(range(self.n_epochs)):
+            indices = np.random.permutation(m)
+            X = X[indices]
+            y = y[indices]
+            for j in range(1, m + 1, self.b_size):
+                Xi = X[j:j+self.b_size]
+                yi = y[j:j+self.b_size]
+                t = i*self.b_size + j/self.b_size
+
+                z = Xi @ theta
+                prob = self.sigmoid(z)
+                gradient = np.dot(Xi.T, (prob - yi))/yi.size
+                mn = self.beta1*mp + (1 - self.beta1)*gradient
+                sn = self.beta2*sp + (1 - self.beta2)*gradient**2
+                mhat = mn/(1 - self.beta1**t)
+                shat = sn/(1 - self.beta2**t)
+                theta -= self.eta*mhat/(np.sqrt(shat) + self.eps)
+                mp = mn
+                sp = sn
+        self.theta = theta
+
+
+    def __str__(self):
+        return "ADAM"
