@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import scikitplot as skplt
+import sys
 
 
 class NeuralNetwork(object):
@@ -10,7 +11,9 @@ class NeuralNetwork(object):
         b_size=100,
         eta=0.1,
         lmbd=0.1,
-        hid_layers=1):
+        n_hid_neur=60,
+        hid_layers=1,
+        init_bias=0.01):
 
         self.X_full = X
         self.Y_full = y
@@ -20,7 +23,6 @@ class NeuralNetwork(object):
         self.n_inputs = X.shape[0]
         self.n_features = X.shape[1]
         self.n_cat = y.shape[1]
-        self.n_hid_neur = int(np.mean(self.n_features + self.n_cat))
         self.hid_layers = hid_layers
 
         self.n_epochs = n_epochs
@@ -28,105 +30,110 @@ class NeuralNetwork(object):
         self.iterations = self.n_inputs // self.b_size
         self.eta = eta
         self.lmbd = lmbd
+        self.init_bias = init_bias
+
+        if not isinstance(n_hid_neur, (list, tuple, np.ndarray)):
+            self.n_hid_neur = np.zeros(self.hid_layers, dtype=int) + n_hid_neur
+        elif len(n_hid_neur) != hid_layers:
+            print("Length of hidden neurons array does not match number of hidden layers")
+            sys.exit()
+        else:
+            self.n_hid_neur = n_hid_neur
 
         self.get_B_W()
 
 
     def get_B_W(self):
-        self.hid_W_first = np.random.randn(self.n_features, self.n_hid_neur)
-        self.hid_B_first = np.zeros(self.n_hid_neur) + 0.01
-        if self.hid_layers > 1:
-            self.hid_W_inner = np.zeros((self.hid_layers - 1, self.n_hid_neur, self.n_hid_neur))
-            for i in range(self.hid_layers - 1):
-                self.hid_W_inner[i] = np.random.randn(self.n_hid_neur, self.n_hid_neur)
-            self.hid_B_inner = np.zeros((self.hid_layers - 1, self.n_hid_neur)) + 0.01
+        self.hid_W = []
+        self.hid_B = []
+        self.hid_W.append(np.random.randn(self.n_features, self.n_hid_neur[0]))
+        self.hid_B.append(np.zeros(self.n_hid_neur[0]) + self.init_bias)
 
-        self.out_W = np.random.randn(self.n_hid_neur, self.n_cat)
-        self.out_B = np.zeros(self.n_cat) + 0.01
+        for i in range(self.hid_layers - 1):
+            self.hid_W.append(np.random.randn(self.n_hid_neur[i], self.n_hid_neur[i+1]))
+            self.hid_B.append(np.zeros(self.n_hid_neur[i+1]) + self.init_bias)
+
+        self.out_W = np.random.randn(self.n_hid_neur[-1], self.n_cat)
+        self.out_B = np.zeros(self.n_cat) + self.init_bias
 
 
     def feed_forward(self):
-        pass
+        self.zh = self.X_part @ self.hid_W[0] + self.hid_B[0]
+        self.ah = []
+        self.ahderiv = []
+        self.ah.append(self.hid_actFunc(self.zh))
+        self.ahderiv.append(self.hid_actFunc(self.zh, deriv=True))
+        zh_next = 0
+
+        for i in range(self.hid_layers - 1):
+            zh_next = self.ah[i] @ self.hid_W[i+1] + self.hid_B[i+1]
+            self.ah.append(self.hid_actFunc(zh_next))
+            self.ahderiv.append(self.hid_actFunc(zh_next, deriv=True))
+
+        self.zo = self.ah[-1] @ self.out_W + self.out_B
+        self.ao = self.out_actFunc(self.zo)
 
     def feed_forward_out(self, X):
-        pass
+        zh = X @ self.hid_W[0] + self.hid_B[0]
+        ah = self.hid_actFunc(zh)
+
+        for i in range(self.hid_layers - 1):
+            zh_next = ah @ self.hid_W[i+1] + self.hid_B[i+1]
+            ah = self.hid_actFunc(zh_next)
+
+        zo = ah @ self.out_W + self.out_B
+        ao = self.out_actFunc(zo)
+        return ao
 
     def backpropagation(self):
-        pass
+        error_o = self.cost(self.Y_part, self.ao, deriv=True)
+        error_h = np.multiply((error_o @ self.out_W.T), self.ahderiv[-1])
+
+        self.out_W_grad = self.ah[-1].T @ error_o
+        self.out_W_grad += self.lmbd*self.out_W
+        self.out_B_grad = np.sum(np.asarray(error_o), axis=0)
+
+        self.out_W -= self.eta*self.out_W_grad
+        self.out_B -= self.eta*self.out_B_grad
+
+        for i in reversed(range(1, self.hid_layers)):
+            hid_W_grad = self.ah[i-1].T @ error_h
+            hid_B_grad = np.sum(np.asarray(error_h), axis=0)
+
+            hid_W_grad += self.lmbd*self.hid_W[i]
+
+            self.hid_W[i] -= self.eta*hid_W_grad
+            self.hid_B[i] -= self.eta*hid_B_grad
+
+            error_h = np.multiply((error_h @ self.hid_W[i].T), self.ahderiv[i-1])
+
+        hid_W_grad = self.X_part.T @ error_h
+        hid_W_grad += self.lmbd*self.hid_W[0]
+        hid_B_grad = np.sum(np.asarray(error_h), axis=0)
+
+        self.hid_W[0] -= self.eta*hid_W_grad
+        self.hid_B[0] -= self.eta*hid_B_grad
 
     def predict(self, X):
         pass
 
-    def predict_probabilities(self, X):
+    def predict_proba(self, X):
         pass
 
     def train(self):
         pass
 
+    def cost(self, z, ztilde, deriv=False):
+        pass
+
 
 class NeuralLogReg(NeuralNetwork):
 
-    def cost(self, z, ztilde):
-        return -np.mean(z.T @ np.log(self.sigmoid(ztilde)) + (np.ones(z.shape) - z).T @ np.log(self.sigmoid(-ztilde)))
-
-
-    def feed_forward(self):
-        self.zh = self.X_part @ self.hid_W_first + self.hid_B_first
-        self.ah = np.zeros((self.hid_layers, self.b_size, self.n_hid_neur))
-        self.ahderiv = np.zeros((self.hid_layers, self.b_size, self.n_hid_neur))
-        self.ah[0] = self.hid_actFunc(self.zh)
-        self.ahderiv[0] = self.hid_actFunc(self.zh, deriv=True)
-        zh_next = 0
-
-        if self.hid_layers > 1:
-            for i in range(self.hid_layers - 1):
-                zh_next = self.ah[i] @ self.hid_W_inner[i] + self.hid_B_inner[i]
-                self.ah[i+1] = self.hid_actFunc(zh_next)
-                self.ahderiv[i+1] = self.hid_actFunc(zh_next, deriv=True)
-
-        self.zo = self.ah[-1] @ self.out_W + self.out_B
-        self.probs = self.out_actFunc(self.zo)
-
-
-    def feed_forward_out(self, X):
-        zh = X @ self.hid_W_first + self.hid_B_first
-        ah = self.hid_actFunc(zh)
-        if self.hid_layers > 1:
-            for i in range(self.hid_layers - 1):
-                zh_next = ah @ self.hid_W_inner[i] + self.hid_B_inner[i]
-                ah = self.hid_actFunc(zh_next)
-        zo = ah @ self.out_W + self.out_B
-        probs = self.out_actFunc(zo)
-        return probs
-
-
-    def backpropagation(self):
-        error_o = self.probs - self.Y_part
-        error_h_prev = np.multiply((error_o @ self.out_W.T), self.ahderiv[-1])
-        self.out_W_grad = self.ah[-1].T @ error_o
-        self.out_B_grad = np.sum(np.asarray(error_o), axis=0)
-        if self.hid_layers > 1:
-            for i in range(self.hid_layers - 2, 0, -1):
-                error_h_next = np.multiply((error_h_prev @ self.hid_W_inner[i].T), self.ahderiv[i])
-                hid_W_grad = self.ah[i].T @ error_h_next
-                hid_B_grad = np.sum(np.asarray(error_h_next), axis=0)
-
-                hid_W_grad += self.lmbd*self.hid_W_inner[i]
-                self.hid_W_inner[i] -= self.eta*hid_W_grad
-                self.hid_B_inner[i] -= self.eta*hid_B_grad
-                error_h_prev = error_h_next
-
-        hid_W_grad = self.X_part.T @ error_h_prev
-        hid_B_grad = np.sum(np.asarray(error_h_prev), axis=0)
-
-
-        self.out_W_grad += self.lmbd*self.out_W
-        hid_W_grad += self.lmbd*self.hid_W_first
-
-        self.out_W -= self.eta*self.out_W_grad
-        self.out_B -= self.eta*self.out_B_grad
-        self.hid_W_first -= self.eta*hid_W_grad
-        self.hid_B_first -= self.eta*hid_B_grad
+    def cost(self, z, ztilde, deriv=False):
+        if deriv:
+            return (ztilde - z)
+        else:
+            return -np.mean(z.T @ np.log(self.sigmoid(ztilde)) + (np.ones(z.shape) - z).T @ np.log(self.sigmoid(-ztilde)))
 
 
     def predict(self, X):
@@ -192,72 +199,24 @@ class NeuralLogReg(NeuralNetwork):
 
 class NeuralLinReg(NeuralNetwork):
 
-    def cost(self, z, ztilde):
-        return np.mean((z - ztilde)**2)
-
-
-    def feed_forward(self):
-        self.zh = self.X_part @ self.hid_W_first + self.hid_B_first
-        self.ah = np.zeros((self.hid_layers, self.b_size, self.n_hid_neur))
-        self.ahderiv = self.ah.copy()
-        self.ah[0] = self.hid_actFunc(self.zh)
-        self.ahderiv[0] = self.hid_actFunc(self.zh, deriv=True)
-        zh_next = 0
-
-        if self.hid_layers > 1:
-            for i in range(self.hid_layers - 1):
-                zh_next = self.ah[i] @ self.hid_W_inner[i] + self.hid_B_inner[i]
-                self.ah[i+1] = self.hid_actFunc(zh_next)
-        self.zo = self.ah[-1] @ self.out_W + self.out_B
-        self.ao = self.out_actFunc(self.zo)
-
-
-    def feed_forward_out(self, X):
-        zh = X @ self.hid_W_first + self.hid_B_first
-        ah = self.hid_actFunc(zh)
-        if self.hid_layers > 1:
-            for i in range(self.hid_layers - 1):
-                zh_next = ah @ self.hid_W_inner[i] + self.hid_B_inner[i]
-                ah = self.hid_actFunc(zh_next)
-        zo = ah @ self.out_W + self.out_B
-        ao = self.out_actFunc(zo)
-        return ao
-
-
-    def backpropagation(self):
-        error_o = 2*(self.ao - self.Y_part)/len(self.ao)
-        error_h_prev = np.multiply((error_o @ self.out_W.T), self.ahderiv[-1])
-
-        self.out_W_grad = self.ah[-1].T @ error_o
-        self.out_B_grad = np.sum(np.asarray(error_o), axis=0)
-        if self.hid_layers > 1:
-            for i in range(self.hid_layers - 2, 0, -1):
-                error_h_next = np.multiply((error_h_prev @ self.hid_W_inner[i].T), self.ahderiv[i])
-                hid_W_grad = self.ah[i].T @ error_h_next
-                hid_B_grad = np.sum(np.asarray(error_h_next), axis=0)
-
-
-                hid_W_grad += self.lmbd*self.hid_W_inner[i]
-                self.hid_W_inner[i] -= self.eta*hid_W_grad
-                self.hid_B_inner[i] -= self.eta*hid_B_grad
-                error_h_prev = error_h_next
-
-        hid_W_grad = self.X_part.T @ error_h_prev
-        hid_B_grad = np.sum(np.asarray(error_h_prev), axis=0)
-
-
-        self.out_W_grad += self.lmbd*self.out_W
-        hid_W_grad += self.lmbd*self.hid_W_first
-
-        self.out_W -= self.eta*self.out_W_grad
-        self.out_B -= self.eta*self.out_B_grad
-        self.hid_W_first -= self.eta*hid_W_grad
-        self.hid_B_first -= self.eta*hid_B_grad
+    def cost(self, z, ztilde, deriv=False):
+        if deriv:
+            return 2*(ztilde - z)/len(ztilde)
+        else:
+            return np.mean((z - ztilde)**2)
 
 
     def predict(self, X):
         z = self.feed_forward_out(X)
         return z
+
+    def R2(self, z, ztilde):
+        RR_res = np.sum((z - ztilde)**2)
+        RR_tot = np.sum((z - np.mean(z))**2)
+        return 1 - RR_res/RR_tot
+
+    def MSE(self, z, ztilde):
+        return np.mean((z - ztilde)**2)
 
 
     def train(self):

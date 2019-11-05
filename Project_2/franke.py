@@ -32,6 +32,7 @@ def get_test_train_data(N, test_size, noise=False):
 	x, y = np.sort(np.random.uniform(0, 1, N)), np.sort(np.random.uniform(0, 1, N))
 	x, y = np.meshgrid(x, y)
 	f = np.ravel(FrankeFunction(x, y))
+
 	n = int(len(f)*test_size)
 
 	indices = np.linspace(0, len(f)-1, len(f))

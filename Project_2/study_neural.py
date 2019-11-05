@@ -69,11 +69,11 @@ if grid_search_credit:
 
     NNdata = np.zeros((len(eta), len(lmbd)), dtype=object)
 
-    hid_AF = ActivationFunctions().PReLU
+    hid_AF = ActivationFunctions().tanh
     out_AF = ActivationFunctions().sigmoid
 
-    run = False
-    act = "_PReLU"
+    run = True
+    act = "_tanh"
 
     if run:
         for i, e in enumerate(tqdm(eta)):
@@ -81,15 +81,16 @@ if grid_search_credit:
                 neur = NeuralLogReg(XTrain, yTrain_onehot,
                     hid_actFunc=hid_AF,
                     out_actFunc=out_AF,
-                    n_epochs=100,
+                    n_epochs=50,
                     b_size=500,
                     eta=e,
                     lmbd=l,
-                    hid_layers=1)
+                    n_hid_neur = [5, 10],
+                    hid_layers=2)
                 neur.train()
                 NNdata[i][j] = neur
 
-        np.save(datapath + "NN_data_credit" + act, NNdata)
+        #np.save(datapath + "NN_data_credit" + act, NNdata)
 
     else:
         NNdata = np.load(datapath + "NN_data_credit" + act + ".npy", allow_pickle=True)
@@ -112,20 +113,21 @@ if grid_search_credit:
 
     sns.set()
     fig, ax = plt.subplots(figsize = (7, 7))
-    sns.heatmap(scoresF1, annot=True, fmt=".3f",ax=ax, cmap="viridis", xticklabels=lmbd, yticklabels=eta, cbar=False)
+    sns.heatmap(scoresArea, annot=True, fmt=".3f",ax=ax, cmap="viridis", xticklabels=lmbd, yticklabels=eta, cbar=False)
 
     ax.set_xlabel("$\lambda$", fontsize = 12)
     ax.set_ylabel("$\eta$", fontsize=12)
     bottom, top = ax.get_ylim()
     ax.set_ylim(bottom + 0.5, top - 0.5)
-    #plt.savefig(figpath + "NN_credit" + act + ".pdf")
-    #plt.show()
+    plt.savefig(figpath + "NN_credit" + act + ".pdf")
+    plt.show()
 
     file = open(respath + act + "_results.txt", "w+")
 
     file.write("Sklearn AUC Score = %1.4f\n" % scoresAUC[mx][my])
     file.write("Sklearn F1 = %1.4f\n" % scoresF1[mx][my])
     file.write("Test area ratio = %1.4f\n" % scoresArea[mx][my])
+    file.write("Lambda = %e, eta = %e" %(lmbd[mu], eta[mx]))
     file.close()
 
 
@@ -150,36 +152,34 @@ if comp_sklearn:
     print(dnn.score(XTrain, yTrain_onehot))
 
 if comp_franke:
-    #np.random.seed(42)
-    def R2(z, z_tilde):
-        RR_res = np.sum((z - z_tilde)**2)
-        RR_tot = np.sum((z - np.mean(z))**2)
-        return 1 - RR_res/RR_tot
+    np.random.seed(42)
 
-    def MSE(z, z_tilde):
-        return np.mean((z - z_tilde)**2)
+
 
 
     n = 100; p = 5
     #x, y, z = get_train_data(n, noise=True)
     #X = CreateDesignMatrix(x, y, p)
-    np.random.seed(42)
-    test, train = get_test_train_data(n, 0.5, False)
-    xtrain, ytrain, zTrain = train
-    xtest, ytest, zTest = test
+    #np.random.seed(42)
+    xtrain, ytrain, zTrain = get_train_data(n, True)
+    xtest, ytest, zTest = get_train_data(n, False)
 
     XTrain = CreateDesignMatrix(xtrain, ytrain, p)
     XTest = CreateDesignMatrix(xtest, ytest, p)
 
     zTrain = zTrain.reshape(-1,1)
 
-    eta = np.logspace(-4, 0, 5)
+    eta = np.logspace(-5, -1, 5)
     lmbd = np.logspace(-8, -4, 5)
+    hid_AF = ActivationFunctions().PReLU
+    out_AF = ActivationFunctions().PReLU
+
     scoresTrain = np.zeros((2, len(eta), len(lmbd)))
     scoresTest = scoresTrain.copy()
+    zdata = np.zeros((len(eta), len(lmbd), len(zTest)))
 
     NNdata = np.zeros((len(eta), len(lmbd)), dtype=object)
-    samp = ""
+    act = ""
 
     run = True
     if run:
@@ -188,27 +188,54 @@ if comp_franke:
                 neurLin = NeuralLinReg(XTrain, zTrain,
                 eta=e,
                 lmbd=l,
-                hid_layers=1,
+                out_actFunc = out_AF,
+                hid_actFunc = hid_AF,
+                hid_layers=2,
+                n_hid_neur= [100, 200],
                 n_epochs=100,
-                b_size=50)
+                b_size=100)
                 neurLin.train()
                 NNdata[i][j] = neurLin
 
-        np.save(datapath + "NN_data_franke" + samp, NNdata)
+        np.save(datapath + "NN_data_franke" + act, NNdata)
 
     else:
-        NNdata = np.load(datapath + "NN_data_franke" + samp + ".npy")
+        NNdata = np.load(datapath + "NN_data_franke" + act + ".npy")
 
     for i in range(len(eta)):
         for j in range(len(lmbd)):
             neurLin = NNdata[i][j]
             ztildeTrain = neurLin.feed_forward_out(XTrain)
-            scoresTrain[0][i][j] = R2(np.ravel(zTrain), np.ravel(ztildeTrain))
-            scoresTrain[1][i][j] = MSE(np.ravel(zTrain), np.ravel(ztildeTrain))
+            scoresTrain[0][i][j] = neurLin.R2(np.ravel(zTrain), np.ravel(ztildeTrain))
+            scoresTrain[1][i][j] = neurLin.MSE(np.ravel(zTrain), np.ravel(ztildeTrain))
 
             ztildeTest = neurLin.feed_forward_out(XTest)
-            scoresTest[0][i][j] = R2(np.ravel(zTest), np.ravel(ztildeTest))
-            scoresTest[1][i][j] = MSE(np.ravel(zTest), np.ravel(ztildeTest))
+            scoresTest[0][i][j] = neurLin.R2(np.ravel(zTest), np.ravel(ztildeTest))
+            scoresTest[1][i][j] = neurLin.MSE(np.ravel(zTest), np.ravel(ztildeTest))
+            zdata[i][j] = np.ravel(ztildeTest)
+
+    mx, my = np.unravel_index(np.nanargmax(scoresTest[0]), scoresTest[0].shape)
+
+
+    x = xtest.reshape(n, n)
+    y = ytest.reshape(n, n)
+    z = zdata[mx][my].reshape(n, n)
+
+    fig = plt.figure()
+    ax = fig.gca(projection='3d')
+    surf = ax.plot_surface(x, y, z, cmap="coolwarm", linewidth=0, antialiased=False, alpha=0.5)
+    fig.colorbar(surf, shrink=0.5, aspect=5)
+    # Customize the z axis.
+    ax.set_zlim(-0.10, 1.40)
+    ax.zaxis.set_major_locator(LinearLocator(10))
+    ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
+    ax.view_init(30, 60)
+    ax.set_xlabel(r"$x$", fontsize=13)
+    ax.set_ylabel(r"$y$", fontsize=13)
+    ax.set_zlabel(r"$f(x, y)$", fontsize=13)
+    plt.tight_layout()
+	#plt.savefig("figures/" + filename + "franke.pdf")
+    plt.show()
 
 
     sns.set()
