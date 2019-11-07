@@ -5,7 +5,10 @@ import scikitplot as skplt
 import seaborn
 
 
-class LogisticRegression(object):
+class LogisticRegression:
+
+    def __init__(self):
+        self._name = "Logistic Regression"
 
     def __call__(self, X):
         z = X @ self.theta
@@ -25,27 +28,27 @@ class LogisticRegression(object):
         return (-y*np.log(prob) - (1 - y)*np.log(1 - prob)).mean()
 
 
+    def bestCurve(self, defaults, total):
+        x = np.linspace(0, 1, total)
+
+        y1 = np.linspace(0, 1, defaults)
+        y2 = np.ones(total-defaults)
+        y = np.concatenate([y1,y2])
+        return x, y
+
+
     def get_Area_ratio(self, y, ypred):
-        ypred2 = 1 - ypred
-        ypred3 = np.array((ypred2, ypred)).T
-        ax = skplt.metrics.plot_cumulative_gain(y, ypred3)
+        ypred = np.array((1 - ypred, ypred)).T
+        ax = skplt.metrics.plot_cumulative_gain(y, ypred)
         plt.close()
         lines = ax.lines[1]
 
         defaults = sum(y == 1)
         total = len(y)
 
-        def bestCurve(defaults, total):
-            x = np.linspace(0, 1, total)
+        baseline = np.linspace(0, 1 + 1/total, total)
 
-            y1 = np.linspace(0, 1, defaults)
-            y2 = np.ones(total-defaults)
-            y3 = np.concatenate([y1,y2])
-            return x, y3
-
-        baseline = np.linspace(0, 1 + 1/len(y), len(y))
-
-        x, best = bestCurve(defaults=defaults, total=total)
+        x, best = self.bestCurve(defaults, total)
 
         modelArea = np.trapz(lines.get_ydata(), lines.get_xdata())
         bestArea = np.trapz(best, x)
@@ -53,6 +56,7 @@ class LogisticRegression(object):
         ratio = (modelArea - baselineArea)/(bestArea - baselineArea)
 
         return ratio
+
 
 
     def plot(self, y, ypred, filename):
@@ -86,6 +90,12 @@ class LogisticRegression(object):
         score = (ypred.round() == y).mean()
         return score
 
+    def __str__(self):
+        return self._name.replace(" ", "_")
+
+    def __repr__(self):
+        return self._name
+
 
 class GradientDescent(LogisticRegression):
 
@@ -96,6 +106,7 @@ class GradientDescent(LogisticRegression):
     def __init__(self, eta=0.001, max_iter=100000):
         self.eta = eta
         self.n = max_iter
+        self._name = "GRADIENT DESCENT"
 
     def fit(self, X, y):
         theta = np.zeros(X.shape[1])
@@ -107,8 +118,6 @@ class GradientDescent(LogisticRegression):
         self.theta = theta
 
 
-    def __str__(self):
-        return "GRADIENT_DESCENT"
 
 class StochasticGradient(LogisticRegression):
 
@@ -120,6 +129,7 @@ class StochasticGradient(LogisticRegression):
         self.n_epochs = n_epochs
         self.gamma = gamma
         self.eta = eta
+        self._name = "STOCHASTIC GRADIENT"
 
 
     def fit(self, X, y):
@@ -140,20 +150,18 @@ class StochasticGradient(LogisticRegression):
         self.theta = theta
 
 
-    def __str__(self):
-        return "STOCHASTIC_GRADIENT"
-
 class StochasticGradientMiniBatch(LogisticRegression):
 
     """
     Stochastic Gradient Descent method with mini-batches and momentum.
     """
 
-    def __init__(self, n_epochs=80, b_size=100, eta= 0.01, gamma=0.9):
+    def __init__(self, n_epochs=80, b_size=100, eta=0.01, gamma=0.9):
         self.b_size = b_size
         self.n_epochs = n_epochs
         self.eta = eta
         self.gamma = gamma
+        self._name = "STOCHASTIC GRADIENT MINI BATCH"
 
 
     def fit(self, X, y):
@@ -178,8 +186,6 @@ class StochasticGradientMiniBatch(LogisticRegression):
         self.theta = theta
 
 
-    def __str__(self):
-        return "STOCHASTIC_GRADIENT_MINI_BATCH"
 
 class ADAM(LogisticRegression):
 
@@ -194,6 +200,7 @@ class ADAM(LogisticRegression):
         self.beta1 = beta1
         self.beta2 = beta2
         self.eps = eps
+        self._name = "ADAM"
 
 
     def fit(self, X, y):
@@ -222,7 +229,3 @@ class ADAM(LogisticRegression):
                 mp = mn
                 sp = sn
         self.theta = theta
-
-
-    def __str__(self):
-        return "ADAM"
