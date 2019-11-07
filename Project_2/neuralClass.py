@@ -11,9 +11,10 @@ class NeuralNetwork(object):
         b_size=100,
         eta=0.1,
         lmbd=0.1,
-        n_hid_neur=60,
+        n_hid_neur=30,
         hid_layers=1,
-        init_bias=0.01):
+        init_bias=0.01,
+        w_sigma = 1):
 
         self.X_full = X
         self.Y_full = y
@@ -32,6 +33,14 @@ class NeuralNetwork(object):
         self.lmbd = lmbd
         self.init_bias = init_bias
 
+        if not isinstance(w_sigma, (list, tuple, np.ndarray)):
+            self.w_sigma = np.zeros(self.hid_layers + 1, dtype=int) + w_sigma
+        elif len(n_hid_neur) != hid_layers:
+            print("Length of hidden neurons array does not match number of hidden layers")
+            sys.exit()
+        else:
+            self.w_sigma = w_sigma
+
         if not isinstance(n_hid_neur, (list, tuple, np.ndarray)):
             self.n_hid_neur = np.zeros(self.hid_layers, dtype=int) + n_hid_neur
         elif len(n_hid_neur) != hid_layers:
@@ -46,14 +55,14 @@ class NeuralNetwork(object):
     def get_B_W(self):
         self.hid_W = []
         self.hid_B = []
-        self.hid_W.append(np.random.randn(self.n_features, self.n_hid_neur[0]))
+        self.hid_W.append(np.random.randn(self.n_features, self.n_hid_neur[0])*self.w_sigma[0])
         self.hid_B.append(np.zeros(self.n_hid_neur[0]) + self.init_bias)
 
         for i in range(self.hid_layers - 1):
-            self.hid_W.append(np.random.randn(self.n_hid_neur[i], self.n_hid_neur[i+1]))
+            self.hid_W.append(np.random.randn(self.n_hid_neur[i], self.n_hid_neur[i+1])*self.w_sigma[i+1])
             self.hid_B.append(np.zeros(self.n_hid_neur[i+1]) + self.init_bias)
 
-        self.out_W = np.random.randn(self.n_hid_neur[-1], self.n_cat)
+        self.out_W = np.random.randn(self.n_hid_neur[-1], self.n_cat)*self.w_sigma[-1]
         self.out_B = np.zeros(self.n_cat) + self.init_bias
 
 
@@ -201,7 +210,7 @@ class NeuralLinReg(NeuralNetwork):
 
     def cost(self, z, ztilde, deriv=False):
         if deriv:
-            return 2*(ztilde - z)/len(ztilde)
+            return 2*(ztilde - z)
         else:
             return np.mean((z - ztilde)**2)
 

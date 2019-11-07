@@ -13,8 +13,8 @@ from imblearn.under_sampling import RandomUnderSampler
 
 comp_ADAM = False
 comp_GD = False
-comp_SGD = False
-comp_SGD_MB = True
+comp_SGD = True
+comp_SGD_MB = False
 comp_sklearn = False
 comp_GD_resampling = False
 comp_GD_change_remove = False

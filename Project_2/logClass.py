@@ -76,7 +76,8 @@ class LogisticRegression(object):
         yPred2 = 1 - ypred
         yPred3 = np.array((yPred2, ypred)).T
         skplt.metrics.plot_cumulative_gain(y, yPred3, title="")
-        plt.plot(x, best)
+        plt.plot(x, best, label="Best curve")
+        plt.legend()
         plt.savefig(filename + ".pdf")
         plt.show()
 
