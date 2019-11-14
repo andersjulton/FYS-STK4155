@@ -10,6 +10,7 @@ class LogisticRegression:
     def __init__(self):
         self._name = "Logistic Regression"
 
+
     def __call__(self, X):
         z = X @ self.theta
         return 1/(1 + np.exp(-z))
@@ -60,11 +61,6 @@ class LogisticRegression:
 
 
     def plot(self, y, ypred, filename):
-        seaborn.set(style="white", context="notebook", font_scale=1,
-                    rc={"axes.grid": True, "legend.frameon": False,
-        "lines.markeredgewidth": 1.4, "lines.markersize": 10, "figure.figsize": (7, 6)})
-        seaborn.set_context("notebook", font_scale=1.2, rc={"lines.linewidth": 4.5})
-
         defaults = sum(y == 1)
         total = len(y)
 
@@ -77,13 +73,21 @@ class LogisticRegression:
             return x, y3
 
         x, best = bestCurve(defaults=defaults, total=total)
-        yPred2 = 1 - ypred
-        yPred3 = np.array((yPred2, ypred)).T
-        skplt.metrics.plot_cumulative_gain(y, yPred3, title="")
-        plt.plot(x, best, label="Best curve")
-        plt.legend()
+
+        x_data, y_data = skplt.helpers.cumulative_gain_curve(y, ypred)
+
+        plt.plot(x_data, y_data, label="Model curve", color='orange')
+        plt.plot(x, best, label="Best curve", color='green', linewidth=2)
+        plt.plot(x, x, label="Baseline", linestyle="--", color='black')
+        plt.xlabel("Percentage of sample", fontsize=14)
+        plt.ylabel("Gain",fontsize=14)
+        plt.grid()
+        plt.legend(fontsize=14)
+        plt.tick_params('both', labelsize=12)
+        plt.tight_layout()
         plt.savefig(filename + ".pdf")
         plt.show()
+        plt.close()
 
 
     def accuracy(self, y, ypred):
@@ -103,7 +107,7 @@ class GradientDescent(LogisticRegression):
     Gradient Descent method
     """
 
-    def __init__(self, eta=0.001, max_iter=100000):
+    def __init__(self, eta=0.001, max_iter=10000):
         self.eta = eta
         self.n = max_iter
         self._name = "GRADIENT DESCENT"
@@ -125,7 +129,7 @@ class StochasticGradient(LogisticRegression):
     Stochastic Gradient Descent method with momentum.
     """
 
-    def __init__(self, n_epochs=80, eta=0.001, gamma=0.9):
+    def __init__(self, n_epochs=100, eta=0.001, gamma=0.9):
         self.n_epochs = n_epochs
         self.gamma = gamma
         self.eta = eta
@@ -156,7 +160,7 @@ class StochasticGradientMiniBatch(LogisticRegression):
     Stochastic Gradient Descent method with mini-batches and momentum.
     """
 
-    def __init__(self, n_epochs=80, b_size=100, eta=0.01, gamma=0.9):
+    def __init__(self, n_epochs=100, b_size=500, eta=0.01, gamma=0.9):
         self.b_size = b_size
         self.n_epochs = n_epochs
         self.eta = eta
@@ -193,7 +197,7 @@ class ADAM(LogisticRegression):
     ADAM optimizer with mini-batches.
     """
 
-    def __init__(self, n_epochs=80, b_size=100, eta=0.001, beta1= 0.9, beta2=0.999, eps=1e-8):
+    def __init__(self, n_epochs=100, b_size=500, eta=0.001, beta1= 0.9, beta2=0.999, eps=1e-8):
         self.b_size = b_size
         self.n_epochs = n_epochs
         self.eta = eta
@@ -209,7 +213,7 @@ class ADAM(LogisticRegression):
         sp = 0
         m = len(y)
 
-        for i in tqdm(range(self.n_epochs)):
+        for i in range(self.n_epochs):
             indices = np.random.permutation(m)
             X = X[indices]
             y = y[indices]

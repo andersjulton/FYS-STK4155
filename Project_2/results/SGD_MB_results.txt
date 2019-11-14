@@ -1,6 +1,0 @@
-Sklearn AUC Score = 0.7726
-Sklearn F1 = 0.5390
-Test accuracy = 0.6331
-Train accuracy = 0.7067
-Test area ratio = 0.5450
-Train area ratio = 0.5247

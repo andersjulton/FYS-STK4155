@@ -2,6 +2,7 @@ import numpy as np
 from readFile import *
 from logClass import GradientDescent, StochasticGradient, StochasticGradientMiniBatch, ADAM
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.model_selection import train_test_split
@@ -13,17 +14,17 @@ from imblearn.under_sampling import RandomUnderSampler
 
 comp_ADAM = False
 comp_GD = False
-comp_SGD = True
+comp_SGD = False
 comp_SGD_MB = False
 comp_sklearn = False
-comp_GD_resampling = False
-comp_GD_change_remove = False
+comp_resampling = False
+comp_down = False
 
 figpath = "figures/"
 respath = "results/"
 datapath = "datafiles/"
 
-def get_credit_data(up_sample=False, down_sample=False):
+def get_credit_data(up_sample=False, down_sample=False, d_ratio = 1):
 
     onehotencoder = OneHotEncoder(categories="auto")
 
@@ -38,7 +39,7 @@ def get_credit_data(up_sample=False, down_sample=False):
     if up_sample:
         XTrain, yTrain = SMOTE().fit_resample(XTrain, np.ravel(yTrain))
     elif down_sample:
-        XTrain, yTrain = RandomUnderSampler(random_state=1).fit_resample(XTrain, yTrain)
+        XTrain, yTrain = RandomUnderSampler(random_state=1, sampling_strategy = d_ratio).fit_resample(XTrain, yTrain)
 
     #yTrain_onehot, yTest_onehot = onehotencoder.fit_transform(yTrain), onehotencoder.fit_transform(yTest)
 
@@ -62,7 +63,7 @@ if comp_ADAM:
     XTrain, yTrain = train
     yTrain = np.ravel(yTrain)
 
-    gd = ADAM(b_size = 256, n_epochs = 1000000//256)
+    gd = ADAM(b_size = 1000, n_epochs = 200)
     gd.fit(XTrain, yTrain)
 
     yPredTest = gd(XTest)
@@ -87,13 +88,10 @@ if comp_ADAM:
     file.close()
 
     print("Scores for ADAM method")
-    print("Sklearn AUC Score: ", roc_auc_score(yTest, yPredTest))
-    print("Sklearn F1: ", f1_score(yTest, np.round(yPredTest)))
-    print("Test accuracy = ", scoreTest)
-    print("Train accuracy = ", scoreTrain)
+    print("F1 test: ", f1_score(yTest, np.round(yPredTest)))
+    print("F1 train: ", f1_score(yTrain, np.round(yPredTrain)))
     print("Test area ratio = ", testAreaRatio)
     print("Train area ratio = ", trainAreaRatio)
-
 
 if comp_GD:
 
@@ -181,7 +179,7 @@ if comp_SGD_MB:
     XTrain, yTrain = train
     yTrain = np.ravel(yTrain)
 
-    sgd_mb = StochasticGradientMiniBatch(b_size = 256, n_epochs = 1000, eta = 0.001)
+    sgd_mb = StochasticGradientMiniBatch(b_size = 500, n_epochs = 100, eta = 0.001)
     sgd_mb.fit(XTrain, yTrain)
 
     yPredTest = sgd_mb(XTest)
@@ -253,88 +251,85 @@ if comp_sklearn:
     print("Test area ratio = ", testAreaRatio)
     print("Train area ratio = ", trainAreaRatio)
 
-if comp_GD_change_remove:
+if comp_down:
 
-    test, train = get_credit_data(change_values=True, remove_values=False, down_sample=False)
+    ratio = np.linspace(0.3, 1, 16)
+    results = np.zeros(len(ratio))
 
-    XTest, yTest = test
-    XTrain, yTrain = train
-    yTrain = np.ravel(yTrain)
-
-    eta = np.linspace(-6, -1, 6)
-    data = np.zeros(len(eta), dtype=object)
-    areaRatio = np.zeros((6, len(eta)))
-
-    run = False
+    run = True
 
     if run:
-        for i, e in enumerate(eta):
-            gd = GradientDescent(max_iter = 10000, eta = 10**e)
-            gd.fit(XTrain, yTrain)
-            data[i] = gd
+        for i, r in enumerate(tqdm(ratio)):
+            result = 0
+            for j in range(5):
+                test, train = get_credit_data(down_sample=True, d_ratio=r)
+                XTest, yTest = test
+                XTrain, yTrain = train
+                yTrain = np.ravel(yTrain)
+                adam = ADAM(n_epochs = 1000, eta = 1e-2)
+                adam.fit(XTrain, yTrain)
+                yPredTest = adam(XTest)
+                result += adam.get_Area_ratio(yTest, yPredTest)
+            results[i] = result/5
 
-        np.save(datapath + "GD_credit_change", data)
-
+        np.save(datapath + "down_sample_test", results)
     else:
-        datas = np.load(datapath + "GD_credit_standard.npy", allow_pickle=True)
-        datar = np.load(datapath + "GD_credit_remove.npy", allow_pickle=True)
-        datac = np.load(datapath + "GD_credit_change.npy", allow_pickle=True)
+        results = np.load(datapath + "down_sample_test.npy")
 
-    for i in range(len(eta)):
-        gds = datas[i]
-        gdr = datar[i]
-        gdc = datac[i]
-
-        yPredTests = gds(XTest)
-        yPredTrains = gds(XTrain)
-        yPredTestr = gdr(XTest)
-        yPredTrainr = gdr(XTrain)
-        yPredTestc = gdc(XTest)
-        yPredTrainc = gdc(XTrain)
-
-        areaRatio[0][i] = gds.get_Area_ratio(yTest, yPredTests)
-        areaRatio[1][i] = gds.get_Area_ratio(yTrain, yPredTrains)
-        areaRatio[2][i] = gdr.get_Area_ratio(yTest, yPredTestr)
-        areaRatio[3][i] = gdr.get_Area_ratio(yTrain, yPredTrainr)
-        areaRatio[4][i] = gdc.get_Area_ratio(yTest, yPredTestc)
-        areaRatio[5][i] = gdc.get_Area_ratio(yTrain, yPredTrainc)
-
-    plt.plot(eta, areaRatio[0], label="Ratio test standard")
-    plt.plot(eta, areaRatio[1], label="Ratio train standard")
-    #plt.plot(eta, areaRatio[2], label="Ratio test remove")
-    #plt.plot(eta, areaRatio[3], label="Ratio train remove")
-    plt.plot(eta, areaRatio[4], label="Ratio test change")
-    plt.plot(eta, areaRatio[5], label="Ratio train change")
-    plt.legend()
-    #plt.savefig(figpath + "GD_credit_eta_standard.pdf")
+    plt.plot(ratio, results)
+    plt.xlabel(r"$N_1/N_0$", fontsize=12)
+    plt.ylabel("Area ratio", fontsize=12)
+    plt.ylim((np.min(results) - 0.005, np.max(results) + 0.005))
+    plt.tight_layout()
+    plt.savefig(figpath + "down_ratio_compare.pdf")
     plt.show()
 
-if comp_GD_resampling:
+if comp_resampling:
 
-    test, train = get_credit_data(change_values=False, remove_values=False, up_sample=True)
+    testu, trainu = get_credit_data(up_sample=True)
+    testd, traind = get_credit_data(down_sample=True)
+    test, train = get_credit_data(down_sample=False, up_sample=False)
 
+    XTestu, yTestu = testu
+    XTestd, yTestd = testd
     XTest, yTest = test
+    XTrainu, yTrainu = trainu
+    XTraind, yTraind = traind
     XTrain, yTrain = train
+    yTrainu = np.ravel(yTrainu)
+    yTraind = np.ravel(yTraind)
     yTrain = np.ravel(yTrain)
 
-    eta = np.linspace(-6, -1, 6)
+    eta = np.logspace(-6, -1, 6)
     data = np.zeros(len(eta), dtype=object)
-    areaRatio = np.zeros((6, len(eta)))
+    datau = data.copy()
+    datad = data.copy()
+    areaRatio = np.zeros((3, len(eta)))
+    F1score = areaRatio.copy()
 
     run = False
 
     if run:
-        for i, e in enumerate(eta):
-            gd = GradientDescent(max_iter = 10000, eta = 10**e)
-            gd.fit(XTrain, yTrain)
-            data[i] = gd
+        for i, e in enumerate(tqdm(eta)):
+            adam = ADAM( n_epochs = 1000, eta = e)
+            adamu = ADAM(n_epochs = 1000, eta = e)
+            adamd = ADAM(n_epochs = 1000, eta = e)
+            adam.fit(XTrain, yTrain)
+            adamu.fit(XTrainu, yTrainu)
+            adamd.fit(XTraind, yTraind)
+            data[i] = adam
+            datau[i] = adamu
+            datad[i] = adamd
 
-        np.save(datapath + "GD_credit_up", data)
+        np.save(datapath + "adam_credit_standard", data)
+        np.save(datapath + "adam_credit_up", datau)
+        np.save(datapath + "adam_credit_down", datad)
+
 
     else:
-        datad = np.load(datapath + "GD_credit_down.npy", allow_pickle=True)
-        datau = np.load(datapath + "GD_credit_up.npy", allow_pickle=True)
-        data = np.load(datapath + "GD_credit_standard.npy", allow_pickle=True)
+        datad = np.load(datapath + "adam_credit_down.npy", allow_pickle=True)
+        datau = np.load(datapath + "adam_credit_up.npy", allow_pickle=True)
+        data = np.load(datapath + "adam_credit_standard.npy", allow_pickle=True)
 
 
     for i in range(len(eta)):
@@ -343,45 +338,24 @@ if comp_GD_resampling:
         gdu = datau[i]
 
         yPredTest = gd(XTest)
-        yPredTrain = gd(XTrain)
         yPredTestd = gdd(XTest)
-        yPredTraind = gdd(XTrain)
         yPredTestu = gdu(XTest)
-        yPredTrainu = gdu(XTrain)
 
         areaRatio[0][i] = gd.get_Area_ratio(yTest, yPredTest)
-        areaRatio[1][i] = gd.get_Area_ratio(yTrain, yPredTrain)
-        areaRatio[2][i] = gdd.get_Area_ratio(yTest, yPredTestd)
-        areaRatio[3][i] = gdd.get_Area_ratio(yTrain, yPredTraind)
-        areaRatio[4][i] = gdu.get_Area_ratio(yTest, yPredTestu)
-        areaRatio[5][i] = gdu.get_Area_ratio(yTrain, yPredTrainu)
+        areaRatio[1][i] = gdd.get_Area_ratio(yTest, yPredTestd)
+        areaRatio[2][i] = gdu.get_Area_ratio(yTest, yPredTestu)
+        F1score[0][i] = f1_score(yTest, np.round(yPredTest))
+        F1score[1][i] = f1_score(yTest, np.round(yPredTestd))
+        F1score[2][i] = f1_score(yTest, np.round(yPredTestu))
 
-    plt.plot(eta, areaRatio[0], label="Ratio test ")
-    plt.plot(eta, areaRatio[1], label="Ratio train ")
-    plt.plot(eta, areaRatio[2], label="Ratio test RandomDownSampler")
-    plt.plot(eta, areaRatio[3], label="Ratio train RandomDownSampler")
-    plt.plot(eta, areaRatio[4], label="Ratio test SMOTE")
-    plt.plot(eta, areaRatio[5], label="Ratio train SMOTE")
-    plt.legend()
-    plt.xlabel(r"$\eta$")
-    plt.savefig(figpath + "GD_credit_eta_sdu_compare.pdf")
+    #plt.semilogx(eta, areaRatio[0], label="No resampling")
+    #plt.semilogx(eta, areaRatio[1], label="RandomDownSampler")
+    #plt.semilogx(eta, areaRatio[2], label="SMOTE")
+    plt.semilogx(eta, F1score[0], label="No resampling")
+    plt.semilogx(eta, F1score[1], label="RandomDownSampler")
+    plt.semilogx(eta, F1score[2], label="SMOTE")
+    plt.legend(fontsize=12)
+    plt.ylabel("F1 score", fontsize=12)
+    plt.xlabel(r"$\eta$",fontsize=12)
+    plt.savefig(figpath + "adam_credit_resampling_compare_F1.pdf")
     plt.show()
-
-
-    """
-    gd.plot(yTest, yPredTest, figpath + "GD_credit_test_down")
-    gd.plot(yTrain, yPredTrain, figpath + "GD_credit_train_down")
-
-    file = open(respath + "GD_results_down.txt", "w+")
-
-    file.write("Test score = %1.4f\n" % scoreTest)
-    file.write("Train score = %1.4f\n" % scoreTrain)
-    file.write("Test area ratio = %1.4f\n" % testAreaRatio)
-    file.write("Train area ratio = %1.4f\n" % trainAreaRatio)
-    file.close()
-
-    print("Scores for GD method")
-    print("Test score = ", scoreTest)
-    print("Train score = ", scoreTrain)
-    print("Test area ratio = ", testAreaRatio)
-    print("Train area ratio = ", trainAreaRatio)"""

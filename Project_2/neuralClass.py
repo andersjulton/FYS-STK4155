@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scikitplot as skplt
 import sys
+from tqdm import tqdm
 
 
 class NeuralNetwork(object):
@@ -171,9 +172,7 @@ class NeuralLogReg(NeuralNetwork):
 
 
     def get_Area_ratio(self, y, ypred):
-        ax = skplt.metrics.plot_cumulative_gain(y, ypred)
-        plt.close()
-        lines = ax.lines[1]
+        x_data, y_data = skplt.helpers.cumulative_gain_curve(y, ypred[:,1])
 
         defaults = sum(y == 1)
         total = len(y)
@@ -190,7 +189,7 @@ class NeuralLogReg(NeuralNetwork):
 
         x, best = bestCurve(defaults=defaults, total=total)
 
-        modelArea = np.trapz(lines.get_ydata(), lines.get_xdata())
+        modelArea = np.trapz(y_data, x_data)
         bestArea = np.trapz(best, x)
         baselineArea = np.trapz(baseline, baseline)
         ratio = (modelArea - baselineArea)/(bestArea - baselineArea)
