@@ -78,3 +78,5 @@ test_all(StochasticGradientMiniBatch)
 test_all(ADAM)
 
 
+
+

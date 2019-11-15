@@ -155,6 +155,10 @@ class NeuralLogReg(NeuralNetwork):
         probs = self.feed_forward_out(X)
         return probs
 
+    def accuracy(self, y, ypred):
+        score = (ypred.round() == y).mean()
+        return score
+
 
     def train(self):
         indices = np.arange(self.n_inputs)
