@@ -177,17 +177,12 @@ class NeuralLogReg(NeuralNetwork):
         defaults = sum(y == 1)
         total = len(y)
 
-        def bestCurve(defaults, total):
-            x = np.linspace(0, 1, total)
+        x = np.linspace(0, 1, total)
+        y1 = np.linspace(0, 1, defaults)
+        y2 = np.ones(total-defaults)
+        best = np.concatenate([y1,y2])
 
-            y1 = np.linspace(0, 1, defaults)
-            y2 = np.ones(total-defaults)
-            y3 = np.concatenate([y1,y2])
-            return x, y3
-
-        baseline = np.linspace(0, 1 + 1/len(y), len(y))
-
-        x, best = bestCurve(defaults=defaults, total=total)
+        baseline = np.linspace(0, 1 + 1/total, total)
 
         modelArea = np.trapz(y_data, x_data)
         bestArea = np.trapz(best, x)
@@ -203,6 +198,7 @@ class NeuralLogReg(NeuralNetwork):
             return sigm*(1 - sigm)
         else:
             return sigm
+
 
 
 class NeuralLinReg(NeuralNetwork):
