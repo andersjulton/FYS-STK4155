@@ -13,14 +13,15 @@ class LogisticRegression:
 
     def __call__(self, X):
         z = X @ self.theta
-        return 1/(1 + np.exp(-z))
+        return self.perceptron(z)
 
 
     def fit(self, X, y):
-        pass
+        raise Error("Method fit(X, y) not implemented")
 
 
-    def sigmoid(self, z):
+    # sigmoid
+    def perceptron(self, z):
         val = 1/(1 + np.exp(-z))
         return val.astype('float32')    #Memory error for float64
 
@@ -29,7 +30,7 @@ class LogisticRegression:
         return (-y*np.log(prob) - (1 - y)*np.log(1 - prob)).mean()
 
 
-    def bestCurve(self, defaults, total):
+    def _bestCurve(self, defaults, total):
         x = np.linspace(0, 1, total)
 
         y1 = np.linspace(0, 1, defaults)
@@ -49,7 +50,7 @@ class LogisticRegression:
 
         baseline = np.linspace(0, 1 + 1/total, total)
 
-        x, best = self.bestCurve(defaults, total)
+        x, best = self._bestCurve(defaults, total)
 
         modelArea = np.trapz(lines.get_ydata(), lines.get_xdata())
         bestArea = np.trapz(best, x)
@@ -64,15 +65,7 @@ class LogisticRegression:
         defaults = sum(y == 1)
         total = len(y)
 
-        def bestCurve(defaults, total):
-            x = np.linspace(0, 1, total)
-
-            y1 = np.linspace(0, 1, defaults)
-            y2 = np.ones(total-defaults)
-            y3 = np.concatenate([y1,y2])
-            return x, y3
-
-        x, best = bestCurve(defaults=defaults, total=total)
+        x, best = self._bestCurve(defaults,total)
 
         x_data, y_data = skplt.helpers.cumulative_gain_curve(y, ypred)
 
@@ -94,43 +87,43 @@ class LogisticRegression:
         score = (ypred.round() == y).mean()
         return score
 
+
     def __str__(self):
         return self._name.replace(" ", "_")
+
 
     def __repr__(self):
         return self._name
 
 
 class GradientDescent(LogisticRegression):
-
     """
     Gradient Descent method
     """
 
     def __init__(self, eta=0.001, max_iter=10000):
         self.eta = eta
-        self.n = max_iter
+        self.N = max_iter
         self._name = "GRADIENT DESCENT"
+
 
     def fit(self, X, y):
         theta = np.zeros(X.shape[1])
-        for i in tqdm(range(self.n)):
-            z = X @ theta
-            prob = self.sigmoid(z)
-            gradient = np.dot(X.T, (prob - y))/y.size
+        for i in range(self.N):
+            p = self.perceptron(X @ theta)
+            gradient = np.dot(X.T, (p - y))/y.size
             theta -= self.eta*gradient
         self.theta = theta
 
 
 
 class StochasticGradient(LogisticRegression):
-
     """
     Stochastic Gradient Descent method with momentum.
     """
 
-    def __init__(self, n_epochs=100, eta=0.001, gamma=0.9):
-        self.n_epochs = n_epochs
+    def __init__(self, N_epochs=100, eta=0.001, gamma=0.9):
+        self.N_epochs = N_epochs
         self.gamma = gamma
         self.eta = eta
         self._name = "STOCHASTIC GRADIENT"
@@ -138,31 +131,28 @@ class StochasticGradient(LogisticRegression):
 
     def fit(self, X, y):
         theta = np.zeros(X.shape[1])
-        vp = 0
-        m = len(y)
-        for i in tqdm(range(self.n_epochs)):
-            for j in range(m):
-                index = np.random.randint(m)
+        M = len(y)
+        v = 0
+        for i in range(self.N_epochs):
+            for j in range(M):
+                index = np.random.randint(M)
                 Xi = X[index]
                 yi = y[index]
-                z = Xi @ theta
-                prob = self.sigmoid(z)
-                gradient = np.dot(Xi.T, (prob - yi))/yi.size
-                vn = self.gamma*vp + self.eta*gradient
-                theta -= vn
-                vp = vn
+                pi = self.perceptron(Xi @ theta)
+                gradient = np.dot(Xi.T, (pi - yi))
+                v = self.gamma*v + self.eta*gradient
+                theta -= v
         self.theta = theta
 
 
 class StochasticGradientMiniBatch(LogisticRegression):
-
     """
     Stochastic Gradient Descent method with mini-batches and momentum.
     """
 
-    def __init__(self, n_epochs=100, b_size=500, eta=0.01, gamma=0.9):
+    def __init__(self, N_epochs=100, b_size=500, eta=0.01, gamma=0.9):
         self.b_size = b_size
-        self.n_epochs = n_epochs
+        self.N_epochs = N_epochs
         self.eta = eta
         self.gamma = gamma
         self._name = "STOCHASTIC GRADIENT MINI BATCH"
@@ -170,36 +160,35 @@ class StochasticGradientMiniBatch(LogisticRegression):
 
     def fit(self, X, y):
         theta = np.zeros(X.shape[1])
-        m = len(y)
-        vp = 0
-        for i in tqdm(range(self.n_epochs)):
-            indices = np.random.permutation(m)
+        M = len(y)
+        j_max = M - self.b_size + 1
+        v = 0
+        for i in range(self.N_epochs):
+            indices = np.random.permutation(M)
             X = X[indices]
             y = y[indices]
-            for j in range(0, m, self.b_size):
+            for j in range(0, j_max, self.b_size):
                 Xi = X[j:j+self.b_size]
                 yi = y[j:j+self.b_size]
 
-                z = Xi @ theta
-                prob = self.sigmoid(z)
+                pi = self.perceptron(Xi @ theta)
+                gradient = np.dot(Xi.T, (pi - yi))/yi.size
 
-                gradient = (Xi.T @ (prob - yi))/yi.size
-                vn = self.gamma*vp + self.eta*gradient
-                theta -= vn
-                vp = vn
+                v = self.gamma*v + self.eta*gradient
+                theta -= v
+
         self.theta = theta
 
 
 
 class ADAM(LogisticRegression):
-
     """
     ADAM optimizer with mini-batches.
     """
 
-    def __init__(self, n_epochs=100, b_size=500, eta=0.001, beta1= 0.9, beta2=0.999, eps=1e-8):
+    def __init__(self, N_epochs=100, b_size=500, eta=0.01, beta1=0.9, beta2=0.999, eps=1e-8):
         self.b_size = b_size
-        self.n_epochs = n_epochs
+        self.N_epochs = N_epochs
         self.eta = eta
         self.beta1 = beta1
         self.beta2 = beta2
@@ -209,27 +198,27 @@ class ADAM(LogisticRegression):
 
     def fit(self, X, y):
         theta = np.zeros(X.shape[1])
-        mp = 0
-        sp = 0
-        m = len(y)
-
-        for i in range(self.n_epochs):
-            indices = np.random.permutation(m)
+        m, s = 0, 0
+        M = len(y)
+        j_max = M - self.b_size + 1
+        t = 1
+        for i in range(self.N_epochs):
+            indices = np.random.permutation(M)
             X = X[indices]
             y = y[indices]
-            for j in range(1, m + 1, self.b_size):
+            for j in range(0, j_max, self.b_size):
                 Xi = X[j:j+self.b_size]
                 yi = y[j:j+self.b_size]
-                t = i*self.b_size + j/self.b_size
 
-                z = Xi @ theta
-                prob = self.sigmoid(z)
-                gradient = np.dot(Xi.T, (prob - yi))/yi.size
-                mn = self.beta1*mp + (1 - self.beta1)*gradient
-                sn = self.beta2*sp + (1 - self.beta2)*gradient**2
-                mhat = mn/(1 - self.beta1**t)
-                shat = sn/(1 - self.beta2**t)
+                pi = self.perceptron(Xi @ theta)
+                gradient = np.dot(Xi.T, (pi - yi))
+
+                m = self.beta1*m + (1 - self.beta1)*gradient
+                s = self.beta2*s + (1 - self.beta2)*gradient**2
+                mhat = m/(1 - self.beta1**t)
+                shat = s/(1 - self.beta2**t)
+
                 theta -= self.eta*mhat/(np.sqrt(shat) + self.eps)
-                mp = mn
-                sp = sn
+                t += 1
+
         self.theta = theta

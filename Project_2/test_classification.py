@@ -4,8 +4,7 @@ from logClass import *
 from neuralClass import *
 
 def test_identity(method):
-	N = 100
-	edge = 100
+	N = 500
 	# Train data
 	X_train = np.ones((N, 2))
 	y_train = rand.randint(2, size=N)
